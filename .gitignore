@@ -1,0 +1,6 @@
+.Rhistory
+.RData
+.DS_Store
+data/*
+graphs/*
+test/*
