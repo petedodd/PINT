@@ -14,14 +14,19 @@ DL[,`[0,1)`:=NULL]; DL[,`[1,5)`:=NULL]; DL[,`[5,10)`:=NULL]; DL[,`[10,15)`:=NULL
 
 ## country level version
 DLC <- unique(DL[,.(iso3,g_whoregion,LAT,a1,a2,a3,a4,a5,cdr04,cdr04ab,LE)])
-
-DLC                                     #error
+DLC
 
 ## NB this is value hh stuff ( acat adult, but we can aggregate these)
-DLK <- DL[,.(iso3,acat,sex,HHu5mu HHu5logsd)]      #will probably need to invlude HIV stuff here
+DLK <- DL[,.(iso3,acat,sex,value,HHu5mu,HHu5logsd)]      #will probably need to invlude HIV stuff here
 
 
+nrep <- 10
+DLKL <- DLK[rep(1:nrow(DLK),nrep),]
+DLKL[,repn:=rep(1:nrep,each=nrow(DLK))]
 
+## DO this!
+
+DLKL
 ## ages to harmonize or split for!
 ## LE
 ## bcgcov
