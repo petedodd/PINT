@@ -1,10 +1,9 @@
 ## TODO
-## edit, neaten, check; change wdir to repo
+## edit, neaten, check;
+## O5s
 
-## to look at doing regression in stan etc.
-setwd('/Users/pjd/Documents/Rwork/hhstructure/hhint')
 rm(list=ls())
-load('AM.Rdata')
+load('data/AM.Rdata')
 
 ## variance in log-transformed space:
 
@@ -31,7 +30,7 @@ NP <- 1
 AMW <- dcast(AM[!acat %in% c('[0,5)','[5,15)')],
              iso3 ~ acat+sex,value.var=c('y0m','y0v'))
 
-## corrections
+## corrections TODO check
 AMW[iso3=='NCL',iso3:='NIC']
 AMW[iso3=='CYM',iso3:='KGZ']
 AMW[iso3=='GUM',iso3:='GTM']
@@ -39,11 +38,11 @@ AMW[iso3=='GUM',iso3:='GTM']
 
 ## =================================================
 ## load up covariate data
-load('XX.Rdata')
-load('XX2.Rdata')
-load('XP.Rdata')
-load('XP2.Rdata')
-load('~/Documents/WHO_TBreports/data/isodict.Rdata')
+load('data/XX.Rdata')
+load('data/XX2.Rdata')
+load('data/XP.Rdata')
+load('data/XP2.Rdata')
+load('data/isodict.Rdata')
 
 ## check covarates aligned with AMW
 setdiff(XX[,as.character(iso3)],AMW[,as.character(iso3)])
@@ -79,39 +78,10 @@ getsex <- function(x){
 
 ZZ <- as.matrix(AMW[,.SD,.SDcols=names(AMW)[-1]])
 EPS <- ZZ[,grepl('v',colnames(ZZ))]     #variances
-## EPS <- matrix(1e4,nrow=nrow(EPS),ncol=ncol(EPS))
 ZZ <- ZZ[,grepl('m',colnames(ZZ))]      #means
-## XX <- matrix(1,nrow=nrow(ZZ),ncol=1)
 K <- ncol(ZZ)
 P <- ncol(XX2)
 N <- nrow(ZZ)
-
-## check
-(plt <- ggplot(data=AM[iso3=='ZWE' & !acat %in% c('[0,5)','[5,15)')],
-              aes(x=acat,y=log(n04_m),group=iso3,col=iso3)) +
-  geom_point() + geom_line() +
-  geom_errorbar(aes(ymin=y0m-2*sqrt(y0v),ymax=y0m+2*sqrt(y0v)),width=0) + 
-  facet_grid(sex~g_whoregion))
-
-
-## MLE/MAP attempt for B
-xi <- t(XX2) %*% XX2
-## xi <- xi %x% diag(K)
-xi <- diag(K) %x% xi                    #TODO THIS WAS WRONG!!
-yy <- t(XX2) %*% ZZ  %*% diag(K)
-vy <- c(yy)
-bmap <- solve(xi,vy)
-bmap <- matrix(bmap,nrow=P,ncol=K)
-ypred <- XX2 %*% bmap
-colnames(ypred) <- colnames(ZZ)
-ypdf <- as.data.table(ypred)
-ypdf$iso3 <- AMW[,iso3]
-ypdf <- melt(ypdf,id='iso3')
-ypdf[,sex:=getsex(variable)]
-ypdf[,acat:=getacat(variable)]
-ypdf[,n04_m:=exp(value)]
-
-plt + geom_point(data=ypdf[iso3=='ZWE'],col=3,shape=2) 
 
 
 ## =================================================
@@ -119,25 +89,16 @@ plt + geom_point(data=ypdf[iso3=='ZWE'],col=3,shape=2)
 
 library(mvregerr)
 
-## Gibbs sampling
-## out <- mvregerrGS(ZZ,EPS,XX, nchain = 4*50,
-##                 init=list(Psi=diag(ncol(ZZ)),nu=5),
-##                 every = 20,record = c('Y','beta'))
-
 BP <- matrix(5,nrow=P,ncol=K)           #5 us default
-## smaller Psi? think about motivation -- seems sensitive to this
 
 out <- mvregerrGS(ZZ,EPS,XX2, nchain = 5*4*50,
                 init=list(Psi=diag(ncol(ZZ))*5e-2,nu=5,B=BP),
                 every = 20,record = c('Y','beta'),XP=XX2)
 
-## TODO prediction by who region
-
 tmp <- out$Y
 tmpp <- out$YP                           #PREDICTION!!
-## for(i in setdiff(1:length(tmp),seq(from=50,to=length(tmp),by=4))) tmp[[i]] <- NULL #thin
 
-y0 <- do.call('rbind',tmp)              
+y0 <- do.call('rbind',tmp)
 colnames(y0) <- colnames(ZZ)
 y0df <- as.data.frame(y0)
 y0df$iso3 <- AMW[,as.character(iso3)]
@@ -145,7 +106,7 @@ y0df$rep <- rep(1:length(tmp),each=nrow(tmp[[1]]))
 y0df <- as.data.table(y0df)
 y0df <- melt(y0df,id=c('iso3','rep'))
 
-y0p <- do.call('rbind',tmpp)              
+y0p <- do.call('rbind',tmpp)
 colnames(y0p) <- colnames(ZZ)
 y0pdf <- as.data.frame(y0p)
 y0pdf$iso3 <- AMW[,as.character(iso3)]
@@ -153,21 +114,6 @@ y0pdf$rep <- rep(1:length(tmp),each=nrow(tmp[[1]]))
 y0pdf <- as.data.table(y0pdf)
 y0pdf <- melt(y0pdf,id=c('iso3','rep'))
 
-
-## xx <- c(AMW[iso3=='ZWE'])
-## xx$iso3 <- NULL
-## xx <- unlist(xx)
-## plot(xx[1:12])
-## plot(xx[seq(from=1,by=2,len=6)])
-## plot(out$Y[[50]][68,seq(from=1,by=2,len=6)])
-
-
-## plot(out$beta[[50]][1,])
-
-## TODO add acat and value alignment
-
-## getacat(head(y0df$variable))
-## getsex(head(y0df$variable))
 
 ## add in acat & exp of value
 y0df[,acat:=factor(getacat(variable))]
@@ -179,9 +125,6 @@ y0pdf[,sex:=factor(getsex(variable))]
 y0pdf[,n04_m:=exp(value)]
 
 ## merge in g_whoregion
-## tmp <- AM[,.(iso3,g_whoregion)]
-## setkey(tmp,iso3)
-## tmp <- tmp[,.SD[1,],by=iso3]
 tmp <-  merge(y0df,ISO[,.(iso3,g_whoregion)],by='iso3',all.x=TRUE,all.y=FALSE)
 y0df <- tmp
 
@@ -212,15 +155,6 @@ ggsave('ng/Predictions.pdf')
 ## y1p[abs(1-datp/n04_m)>.5,]
 (bad <- y1p[abs(n04_m-datp)>.6,as.character(unique(iso3))])
 
-
-ggplot(data=y1p[iso3 %in% bad],
-       aes(x=acat,y=datp,group=iso3,col=iso3)) +
-  facet_grid(iso3~sex) +
-  geom_point(aes(acat,n04_m),shape=2)  +
-  geom_point() + geom_line() +
-  theme(legend.position="none",axis.text.x = element_text(angle=90))
-ggsave('ng/BadPredictions.pdf')
-
 ggplot(data=y1p[g_whoregion %in% c('AFR','EMR','EUR')],
        aes(x=acat,y=datp,group=iso3,col=iso3)) +
   facet_grid(g_whoregion~sex) +
@@ -228,7 +162,8 @@ ggplot(data=y1p[g_whoregion %in% c('AFR','EMR','EUR')],
   geom_label(data=y1p[iso3 %in% bad],aes(x=acat,y=datp,label=iso3))+
   geom_point() + geom_line() +
   theme(legend.position="none",axis.text.x = element_text(angle=90))
-ggsave('ng/BadPredictionsOutlie.pdf')
+
+ggsave('graphs/2BadPredictionsOutlie.pdf')
 
 ## ----- residuals
 y1 <- y0df[,.(n04_m=mean(n04_m)),by=.(iso3,acat,sex,g_whoregion)]
@@ -247,36 +182,7 @@ ggplot(y1,aes(datp,n04_m,col=acat,shape=sex)) +
 ggsave('ng/Residuals.pdf')
 
 ## ========================
-## ---- particular region
-
-AMR <- AM[!acat %in% c('[0,5)','[5,15)') & g_whoregion=='EMR']
-yr <- y0pdf[g_whoregion=='EMR']
-## AMR <- AM[!acat %in% c('[0,5)','[5,15)') & iso3=='ZWE']
-## yr <- y0df[iso3=='ZWE' & rep==1]
-## yr <- y0df[iso3=='ZWE']
-
-
-plt <- ggplot(data=AMR,
-              aes(x=acat,y=log(n04_m),group=iso3,col=iso3)) +
-  facet_grid(iso3~sex) +
-  ## geom_point(data=yr,shape=2)  +
-  geom_violin(data=yr,aes(x=acat,y=log(n04_m),group=factor(paste(acat,sex,iso3))))  +
-  geom_point() + geom_line() +
-  theme(legend.position="none",axis.text.x = element_text(angle=90))
-  ## guides(color=FALSE)
-  ## theme(legend.position="none")
-
-plt
-
-## ggsave(plt,filename = 'ngWX_AFR.pdf',width=7,height=30)
-## ggsave(plt,filename = 'ngnoX_AFR.pdf',width=7,height=30)
-
-
-## TODO
 ## prediction for all cns!
-## longer chain / 
-## other outputs?
-## TODO over 5 too?
 
 out <- mvregerrGS(ZZ,EPS,XX2, nchain = 5*4*50,
                 init=list(Psi=diag(ncol(ZZ))*5e-2,nu=5,B=BP),
@@ -295,5 +201,10 @@ y0df[,]
 
 y0df <- melt(y0df,id=c('iso3','rep'))
 
+U5 <- y0df
+U5[,sex:=factor(getsex(variable))]
+U5[,acat:=factor(getacat(variable))]
+U5[,variable:=NULL]
+save(U5,file='data/U5.Rdata')
 
-
+## TODO copy over o5s

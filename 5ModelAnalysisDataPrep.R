@@ -187,3 +187,75 @@ D <- D[,.(iso3,country,g_whoregion,LAT,
 D
 save(D,file='data/D.Rdata')
 
+## =========== merging and reshaping
+
+rm(list=ls())
+load('data/U5.Rdata')                   #load HH size predictions
+load('data/D.Rdata')                    #load parent data
+load('data/LEA.Rdata')                  #load life-expectancy data
+
+## reshape
+DL <- melt(D,id.vars = c("iso3","country","g_whoregion","LAT",paste0("a",1:15),
+                         "hivprop","artprop","cdr04","cdr04ab","cdr514","cdr514ab"))
+
+## remap for consistency
+U5$acat <- plyr::mapvalues(U5$acat,from=levels(U5$acat),
+                           to=c(levels(U5$acat)[1:5],'[65,Inf)'))
+
+
+## test <- head(DL$variable)               #for testing functions below
+
+## extract sex from notification variables
+getsex <- function(x){
+  toupper(unlist(lapply(strsplit(as.character(x),"_"),function(x)x[[2]])))
+}
+## getsex(test)                            #test
+
+## extract age category from notification variables
+getacat <- function(x){
+  bot <- unlist(lapply(strsplit(as.character(x),"_"),function(x)x[[3]]))
+  top <- unlist(lapply(strsplit(as.character(x),"_"),function(x)x[[4]]))
+  paste0('[',bot,',',top,')')
+}
+## getacat(test) #test
+
+## tidy up
+DL[,sex:=factor(getsex(variable))]      #add sex category
+DL[,acat:=factor(getacat(variable))]    #add age category
+DL <- DL[!acat %in%c('[0,4)','[5,14)')] #drop child notifications
+DL$acat <- plyr::mapvalues(DL$acat,from=as.character(DL[,unique(acat)]),
+                           to=levels(U5$acat))
+
+
+## --- merge HH predictions
+names(U5)[2:3] <- c('HHu5mu','HHu5logsd')
+U5[,sex:=factor(c('M','F')[as.numeric(as.character(sex))])]
+DL <- merge(DL,U5,by=c('iso3','acat','sex'),all.x=TRUE)
+
+## U5[iso3=='ZWE']
+## DL[iso3=='ZWE']
+
+## regional average for NAs
+DLR <- DL[!is.na(HHu5mu),.(HHu5mu=mean(HHu5mu),HHu5logsd=mean(HHu5logsd)),by=g_whoregion]
+setkey(DLR,g_whoregion)
+DL[is.na(HHu5mu),HHu5mu:=DLR[as.character(g_whoregion)][,HHu5mu]]
+DL[is.na(HHu5logsd),HHu5logsd:=DLR[as.character(g_whoregion)][,HHu5logsd]]
+
+
+## --- merge LEA
+LEAW <- dcast(LEA[,.(iso3,agegp,LE)],iso3~agegp,value.var='LE')
+DL <- merge(DL,LEAW,by='iso3',all.x=TRUE)
+
+## regional average for NAs
+DLR <- DL[!is.na(`[0,1)`),.(`[0,1)`=mean(`[0,1)`),`[1,5)`=mean(`[1,5)`),
+                            `[5,10)`=mean(`[5,10)`),`[10,15)`=mean(`[10,15)`)),
+          by=g_whoregion]
+
+setkey(DLR,g_whoregion)
+DL[is.na(`[0,1)`),`[0,1)`:=DLR[as.character(g_whoregion)][,`[0,1)`]]
+DL[is.na(`[1,5)`),`[1,5)`:=DLR[as.character(g_whoregion)][,`[1,5)`]]
+DL[is.na(`[5,10)`),`[5,10)`:=DLR[as.character(g_whoregion)][,`[5,10)`]]
+DL[is.na(`[10,15)`),`[10,15)`:=DLR[as.character(g_whoregion)][,`[10,15)`]]
+
+save(DL,file='data/DL.Rdata')
+
