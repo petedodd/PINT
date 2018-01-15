@@ -236,26 +236,28 @@ DL <- merge(DL,U5,by=c('iso3','acat','sex'),all.x=TRUE)
 ## DL[iso3=='ZWE']
 
 ## regional average for NAs
-DLR <- DL[!is.na(HHu5mu),.(HHu5mu=mean(HHu5mu),HHu5logsd=mean(HHu5logsd)),by=g_whoregion]
-setkey(DLR,g_whoregion)
-DL[is.na(HHu5mu),HHu5mu:=DLR[as.character(g_whoregion)][,HHu5mu]]
-DL[is.na(HHu5logsd),HHu5logsd:=DLR[as.character(g_whoregion)][,HHu5logsd]]
+wcols <- c('HHu5mu','HHu5logsd')
+DL[,(wcols):=lapply(wcols,function(x){
+  x <- get(x)
+  x[is.na(x)] <- mean(x, na.rm = TRUE)
+  x
+}),by=.(g_whoregion,acat,sex)]
 
 
 ## --- merge LEA
 LEAW <- dcast(LEA[,.(iso3,agegp,LE)],iso3~agegp,value.var='LE')
 DL <- merge(DL,LEAW,by='iso3',all.x=TRUE)
 
-## regional average for NAs
-DLR <- DL[!is.na(`[0,1)`),.(`[0,1)`=mean(`[0,1)`),`[1,5)`=mean(`[1,5)`),
-                            `[5,10)`=mean(`[5,10)`),`[10,15)`=mean(`[10,15)`)),
-          by=g_whoregion]
+## fill in NAs wit regional average
+wcols <- names(DL)[(ncol(DL)-3):ncol(DL)]
+DL[,(wcols):=lapply(wcols,function(x){
+  x <- get(x)
+  x[is.na(x)] <- mean(x, na.rm = TRUE)
+  x
+}),by=g_whoregion]
 
-setkey(DLR,g_whoregion)
-DL[is.na(`[0,1)`),`[0,1)`:=DLR[as.character(g_whoregion)][,`[0,1)`]]
-DL[is.na(`[1,5)`),`[1,5)`:=DLR[as.character(g_whoregion)][,`[1,5)`]]
-DL[is.na(`[5,10)`),`[5,10)`:=DLR[as.character(g_whoregion)][,`[5,10)`]]
-DL[is.na(`[10,15)`),`[10,15)`:=DLR[as.character(g_whoregion)][,`[10,15)`]]
+## DL[iso3=='ABW']
+## DL[iso3=='ZWE']
 
 save(DL,file='data/DL.Rdata')
 

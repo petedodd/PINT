@@ -117,10 +117,9 @@ IPTrr(1:10)
 
 
 
+
 ## ------ additionally ----
 names(PZ)
-
-LE <- function(a,iso3) 70
 
 ## ## ================= tree testing =========
 

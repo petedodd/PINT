@@ -4,6 +4,24 @@ load('data/DL.Rdata')
 source('3ModelDefn.R')
 source('4ModelFuns.R')
 
+
+DL[iso3=='ABW']
+DL[iso3=='ZWE']
+
+## simplifying for u5 only
+DL[,LE:=(`[0,1)`+4*`[1,5)`)/5]
+DL[,`[0,1)`:=NULL]; DL[,`[1,5)`:=NULL]; DL[,`[5,10)`:=NULL]; DL[,`[10,15)`:=NULL]; 
+
+## country level version
+DLC <- unique(DL[,.(iso3,g_whoregion,LAT,a1,a2,a3,a4,a5,cdr04,cdr04ab,LE)])
+
+DLC                                     #error
+
+## NB this is value hh stuff ( acat adult, but we can aggregate these)
+DLK <- DL[,.(iso3,acat,sex,HHu5mu HHu5logsd)]      #will probably need to invlude HIV stuff here
+
+
+
 ## ages to harmonize or split for!
 ## LE
 ## bcgcov
@@ -17,12 +35,10 @@ nrep <- 10                              #NB 100 gives 60Mb
 DLL <- DL[rep(1:nrow(DL),nrep)]
 DLL[,repn:=rep(1:nrep,each=nrow(DL))]
 
+## TODO need to advance for on off interventions
 
+## size means probably need to do as acat
 
-## ------ additionally ----
-names(PZ)
-
-LE <- function(a,iso3) 70
 
 ## ================= tree testing =========
 
@@ -45,7 +61,7 @@ tdf[,progn.LP.PTp:=progn.LP.PTn*IPTrr]
 tdf[,progn.LN.PTp:=progn.LN.PTn*IPTrr]
 tdf[,PTcov.N:=0]
 tdf[,PTcov.P:=0]
-tdf[,LE:=LE(a)]
+## tdf[,LE:=LE(a)]
 
 ## age categories
 tdf[,acs:=cut(a,breaks = 0:15,include.lowest = TRUE,right=FALSE,ordered_result = TRUE)]
