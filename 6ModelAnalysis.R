@@ -2,6 +2,7 @@
 ## HIV functions
 ## CDR upped to reflect HHCT households
 ## TODO courses treats screens
+## see end file TODO 
 rm(list=ls())
 load('data/DL.Rdata')
 source('3ModelDefn.R')
@@ -96,13 +97,9 @@ PSA[intervention=='full',PTcov.P:=1]
 PSA[intervention=='full',CDR:=1]
 
 
-
-
 ## ------ tree model calculations
-
-
 F <- makeTfuns(kexp,unique(kexp$fieldsAll))
-getAQ(kexp,'LE')
+## getAQ(kexp,'LE')
 summary(F$checkfun(PSA))                         #!!
 
 ## summary(F$prevalentfun(PSA))
@@ -122,7 +119,7 @@ PSA$e.LE <- F$LEfun(PSA)*PSA$u5hhc
 
 plotter(kexp, varz=c('name','LE'), edgelabel = TRUE)
 plotter(kexp, varz=c('name','incidence'), edgelabel = TRUE)
-
+print(kexp,'incidence')
 
 
 ## comparison by category
@@ -131,10 +128,29 @@ PSAR <- PSA[,.(ep=sum(e.prevalent),
                ed=sum(e.deaths),
                el=sum(e.LE)),by=.(repn,intervention)]
 
-(PSARg <- PSAR[,.(ep=mean(ep),ei=mean(ei),ed=mean(ed),el=mean(el)*1e-6),by=intervention])
+(PSARg <- PSAR[,.(ep=mean(ep),ei=mean(ei),
+                  ed=mean(ed),ed.sd=sd(ed),
+                  el=mean(el)*1e-6),by=intervention])
 ## 50:50 cop:inc and ~110K d
 
 (PSARg[1,ed] - PSARg[2,ed])             #will be a bit lower with CDR correction
 ## TODO why is ei about the same?? 
-## TODO IPT RR wrong way? check
+## TODO IPT read more
+## TODO check NAs
+
+PSARg
+
+## ??
+## TODO prevalent disease has incidence=1 needs changing
+summary(PSA[intervention=='full',e.incidence]/PSA[intervention=='basecase',e.incidence])
+PSA[,summary(IPTrr)]
+
+summary(PSA[,progn.LP.PTp/progn.LP.PTn])
+
+PSA[intervention=='full',.(e.incidence,iso3,repn)]
+PSA[intervention=='basecase',.(e.incidence,iso3,repn)]
+
+
+
+summary(PSA)
 
