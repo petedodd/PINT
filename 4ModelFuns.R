@@ -1,5 +1,4 @@
 ## TODO
-## CDR BCG coverage functions etc
 ## remove most sanity checks so can be sourced
 ## think LHS
 
@@ -19,7 +18,6 @@ clx                                     #avoid the 1- or the 1
 clx[!grepl('1',clx)]
 
 ## testing
-##TODO define functions
 
 ## == co-prevalence (empirical)
 coprev <- function(a){
@@ -30,9 +28,11 @@ coprev <- function(a){
 coprev(1:10)
 
 ## == case detection
-CDR <- function(a){
-  ## TODO from notification/estimates
-  0.4
+CDR <- function(mn,ab){
+  a <- mn*ab
+  b <- (1-mn)*ab
+  rbeta(n=length(mn),shape1 = a,shape2 = b)
+  ## 0.4
 }
 
 ## == CFR on tx
@@ -103,6 +103,15 @@ progprob <- function(a,bcgcov,lat){
 
 summary(progprob(runif(1e3,0,1),0.99,90))
 
+## average for u5s
+avu5progprob <- function(a1,a2,a3,a4,a5,lat){
+  zs <- rep(0,length(a1))
+  (progprob(zs+0.5,a1*1e-2,lat)+progprob(zs+1.5,a2*1e-2,lat)+
+   progprob(zs+2.5,a3*1e-2,lat)+progprob(zs+3.5,a4*1e-2,lat)+
+   progprob(zs+4.5,a5*1e-2,lat))/5
+}
+
+
 ## === disaggregating by TST status? may not be used??
 RRtst <- function(a){
   PZ$RRtst10$r(length(a))
@@ -119,106 +128,4 @@ IPTrr(1:10)
 
 
 ## ------ additionally ----
-names(PZ)
-
-## ## ================= tree testing =========
-
-
-## tdf <- data.table(a=runif(1e4,0,15),iso3='LSO',lat=0,bcgcov=0.8)
-
-## ## compute other data
-## tdf[,CDR:=CDR(a)]
-## tdf[,CFRtxY:=CFRtxY(a)]
-## tdf[,CFRtxN:=CFRtxN(a)]
-## tdf[,coprev:=coprev(a)]
-## tdf[,IPTrr:=IPTrr(a)]
-## tdf[,ltbi.prev:=ltbi.prev(a,coprev)]
-## tdf[,pprogn:=progprob(a,bcgcov,lat)]
-## tdf[,rrtst:=RRtst(a)]
-## tdf[,inc:=ltbi.prev * pprogn]
-## tdf[,progn.LP.PTn:=inc]                     #change for RR!
-## tdf[,progn.LN.PTn:=0]                       #change for RR!
-## tdf[,progn.LP.PTp:=progn.LP.PTn*IPTrr]
-## tdf[,progn.LN.PTp:=progn.LN.PTn*IPTrr]
-## tdf[,PTcov.N:=0]
-## tdf[,PTcov.P:=0]
-## tdf[,LE:=LE(a)]
-
-## ## age categories
-## tdf[,acs:=cut(a,breaks = 0:15,include.lowest = TRUE,right=FALSE,ordered_result = TRUE)]
-## tdf[,ac:=cut(a,breaks=c(0,5,15),include.lowest = TRUE,right=FALSE,ordered_result = TRUE)]
-## tdf[,acb:=cut(a,breaks=c(0,1,2,5,10,15),include.lowest = TRUE,right=FALSE,ordered_result = TRUE)]
-## levels(tdf$acb)
-
-
-## ## just looking at outcomes as simpler
-## G <- makeTfuns(outcomes,unique(outcomes$fieldsAll))
-## getAQ(outcomes,'check')
-
-## summary(G$checkfun(tdf))
-## print(outcomes,'check','p','LE')
-
-
-## summary(G$de(tdf))
-## summary(G$death(tdf))
-## summary(G$deathfun(tdf))
-## summary(G$LEfun(tdf))
-## summary(G$incidencefun(tdf))
-
-
-## summary(G$LEfun(tdf))
-## getAQ(outcomes,'LE')
-
-## ## print(outcomes,'death','treatments','incidence','LE','p')
-## ## print(kexp,'p')
-## ## print(kexp,'incidence','LE')
-## ## print(kexp,'death','treatments')
-## ## print(kexp,'prevalent','LTBI')
-
-
-
-## F <- makeTfuns(kexp,unique(kexp$fieldsAll))
-## getAQ(kexp,'LE')
-## summary(F$checkfun(tdf))                         #!!
-
-
-
-
-## summary(F$prevalentfun(tdf))
-## summary(F$incidencefun(tdf))
-## summary(F$deathfun(tdf))
-## summary(F$LEfun(tdf))
-
-
-## tdf$e.prevalent <- F$prevalentfun(tdf)
-## tdf$e.incidence <- F$incidencefun(tdf)
-## tdf$e.deaths <- F$deathfun(tdf)
-## tdf$e.LE <- F$LEfun(tdf)
-
-
-
-## ## print(kexp,'LTBI','p')
-
-
-## ## print(kexp,'incidence','LE')
-## ## print(kexp,'death','treatments')
-## ## print(kexp,'prevalent','LTBI')
-
-## plotter(kexp, varz=c('name','LE'), edgelabel = TRUE)
-## plotter(kexp, varz=c('name','incidence'), edgelabel = TRUE)
-
-
-
-## ## comparison by category
-## tdf[,.(ep=mean(e.prevalent),
-##        ei=mean(e.incidence),
-##        ed=mean(e.deaths))]
-
-## tdf[,.(ep=mean(e.prevalent),
-##        ei=mean(e.incidence),
-##        ed=mean(e.deaths)),
-##     by=ac]
-
-## ## incidence by TST status?
-
-
+## names(PZ)

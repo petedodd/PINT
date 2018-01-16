@@ -1,4 +1,7 @@
 ## TODO
+## HIV functions
+## CDR upped to reflect HHCT households
+## TODO courses treats screens
 rm(list=ls())
 load('data/DL.Rdata')
 source('3ModelDefn.R')
@@ -54,115 +57,84 @@ chhc <- chhc[,.(u5hhc=mean(u5hhc),u5hhc.sd=sd(u5hhc),
 
 save(chhc,file='data/chhc.Rdata')
 
-## merge into parent data table
+## merge to make parent data table for PSA
 DLC <- merge(DLC,chhc,by='iso3')
 
+## build PSA dt
+nrep <- 1e2
+PSA <- DLC[rep(1:nrow(DLC),nrep),]
+PSA[,repn:=rep(1:nrep,each=nrow(DLC))]
 
-## LE
-## bcgcov
-## progression
 
 ## TODO need to advance for on off interventions
 
+## compute variables for PSA data table
+azu5 <- rep(1,nrow(PSA))                #dummy ages for functions defined like that
+PSA[,CDR:=CDR(cdr04,cdr04ab)]
+PSA[,CFRtxY:=CFRtxY(azu5)]
+PSA[,CFRtxN:=CFRtxN(azu5)]
+PSA[,coprev:=coprev(azu5)]
+PSA[,IPTrr:=IPTrr(azu5)]
+PSA[,ltbi.prev:=ltbi.prev(azu5,coprev)]
+PSA[,pprogn:=avu5progprob(a1,a2,a3,a4,a5,LAT)]
+PSA[,rrtst:=RRtst(azu5)]
+PSA[,inc:=ltbi.prev * pprogn]
+PSA[,progn.LP.PTn:=inc]                     
+PSA[,progn.LN.PTn:=0]                       
+PSA[,progn.LP.PTp:=progn.LP.PTn*IPTrr]
+PSA[,progn.LN.PTp:=progn.LN.PTn*IPTrr]
+PSA[,PTcov.N:=0]
+PSA[,PTcov.P:=0]
 
-## ## ================= tree testing =========
-
-
-## tdf <- data.table(a=runif(1e4,0,15),iso3='LSO',lat=0,bcgcov=0.8)
-
-## ## compute other data
-## tdf[,CDR:=CDR(a)]
-## tdf[,CFRtxY:=CFRtxY(a)]
-## tdf[,CFRtxN:=CFRtxN(a)]
-## tdf[,coprev:=coprev(a)]
-## tdf[,IPTrr:=IPTrr(a)]
-## tdf[,ltbi.prev:=ltbi.prev(a,coprev)]
-## tdf[,pprogn:=progprob(a,bcgcov,lat)]
-## tdf[,rrtst:=RRtst(a)]
-## tdf[,inc:=ltbi.prev * pprogn]
-## tdf[,progn.LP.PTn:=inc]                     #change for RR!
-## tdf[,progn.LN.PTn:=0]                       #change for RR!
-## tdf[,progn.LP.PTp:=progn.LP.PTn*IPTrr]
-## tdf[,progn.LN.PTp:=progn.LN.PTn*IPTrr]
-## tdf[,PTcov.N:=0]
-## tdf[,PTcov.P:=0]
-## ## tdf[,LE:=LE(a)]
-
-## ## age categories
-## tdf[,acs:=cut(a,breaks = 0:15,include.lowest = TRUE,right=FALSE,ordered_result = TRUE)]
-## tdf[,ac:=cut(a,breaks=c(0,5,15),include.lowest = TRUE,right=FALSE,ordered_result = TRUE)]
-## tdf[,acb:=cut(a,breaks=c(0,1,2,5,10,15),include.lowest = TRUE,right=FALSE,ordered_result = TRUE)]
-## levels(tdf$acb)
-
-
-## ## just looking at outcomes as simpler
-## G <- makeTfuns(outcomes,unique(outcomes$fieldsAll))
-## getAQ(outcomes,'check')
-
-## summary(G$checkfun(tdf))
-## print(outcomes,'check','p','LE')
-
-
-## summary(G$de(tdf))
-## summary(G$death(tdf))
-## summary(G$deathfun(tdf))
-## summary(G$LEfun(tdf))
-## summary(G$incidencefun(tdf))
-
-
-## summary(G$LEfun(tdf))
-## getAQ(outcomes,'LE')
-
-## ## print(outcomes,'death','treatments','incidence','LE','p')
-## ## print(kexp,'p')
-## ## print(kexp,'incidence','LE')
-## ## print(kexp,'death','treatments')
-## ## print(kexp,'prevalent','LTBI')
-
-
-
-## F <- makeTfuns(kexp,unique(kexp$fieldsAll))
-## getAQ(kexp,'LE')
-## summary(F$checkfun(tdf))                         #!!
+## intervention set
+## TODO NB CDR also to change!
+npsa <- nrow(PSA)
+PSA <- PSA[rep(1:npsa,2),]
+PSA[,intervention:=c(rep('basecase',npsa),rep('full',npsa))]
+PSA[intervention=='full',PTcov.N:=1]
+PSA[intervention=='full',PTcov.P:=1]
+PSA[intervention=='full',CDR:=1]
 
 
 
 
-## summary(F$prevalentfun(tdf))
-## summary(F$incidencefun(tdf))
-## summary(F$deathfun(tdf))
-## summary(F$LEfun(tdf))
+## ------ tree model calculations
 
 
-## tdf$e.prevalent <- F$prevalentfun(tdf)
-## tdf$e.incidence <- F$incidencefun(tdf)
-## tdf$e.deaths <- F$deathfun(tdf)
-## tdf$e.LE <- F$LEfun(tdf)
+F <- makeTfuns(kexp,unique(kexp$fieldsAll))
+getAQ(kexp,'LE')
+summary(F$checkfun(PSA))                         #!!
+
+## summary(F$prevalentfun(PSA))
+## summary(F$incidencefun(PSA))
+## summary(F$deathfun(PSA))
+## summary(F$LEfun(PSA))
+
+
+PSA$e.prevalent <- F$prevalentfun(PSA)*PSA$u5hhc
+PSA$e.incidence <- F$incidencefun(PSA)*PSA$u5hhc
+PSA$e.deaths <- F$deathfun(PSA)*PSA$u5hhc
+PSA$e.LE <- F$LEfun(PSA)*PSA$u5hhc
+
+## print(kexp,'incidence','LE')
+## print(kexp,'death','treatments')
+## print(kexp,'prevalent','LTBI')
+
+plotter(kexp, varz=c('name','LE'), edgelabel = TRUE)
+plotter(kexp, varz=c('name','incidence'), edgelabel = TRUE)
 
 
 
-## ## print(kexp,'LTBI','p')
+## comparison by category
+PSAR <- PSA[,.(ep=sum(e.prevalent),
+               ei=sum(e.incidence),
+               ed=sum(e.deaths),
+               el=sum(e.LE)),by=.(repn,intervention)]
 
+(PSARg <- PSAR[,.(ep=mean(ep),ei=mean(ei),ed=mean(ed),el=mean(el)*1e-6),by=intervention])
+## 50:50 cop:inc and ~110K d
 
-## ## print(kexp,'incidence','LE')
-## ## print(kexp,'death','treatments')
-## ## print(kexp,'prevalent','LTBI')
-
-## plotter(kexp, varz=c('name','LE'), edgelabel = TRUE)
-## plotter(kexp, varz=c('name','incidence'), edgelabel = TRUE)
-
-
-
-## ## comparison by category
-## tdf[,.(ep=mean(e.prevalent),
-##        ei=mean(e.incidence),
-##        ed=mean(e.deaths))]
-
-## tdf[,.(ep=mean(e.prevalent),
-##        ei=mean(e.incidence),
-##        ed=mean(e.deaths)),
-##     by=ac]
-
-## ## incidence by TST status?
-
+(PSARg[1,ed] - PSARg[2,ed])             #will be a bit lower with CDR correction
+## TODO why is ei about the same?? 
+## TODO IPT RR wrong way? check
 
