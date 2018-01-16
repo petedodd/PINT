@@ -20,129 +20,149 @@ DLC
 DLK <- DL[,.(iso3,acat,sex,value,HHu5mu,HHu5logsd)]      #will probably need to invlude HIV stuff here
 
 
-nrep <- 10
+nrep <- 1e3
 DLKL <- DLK[rep(1:nrow(DLK),nrep),]
 DLKL[,repn:=rep(1:nrep,each=nrow(DLK))]
 
-## DO this!
+## u5 contacts found
+DLKL[,phh := rlnorm(n = nrow(DLKL), meanlog=HHu5mu, sdlog=HHu5logsd)]
+## print(DLKL[phh>1e2,],n=Inf)                            #TODO problem for rich countries!
+DLKL[phh>5,phh:=runif(sum(phh>5),max=5)]               #TODO temporary!
 
-DLKL
-## ages to harmonize or split for!
+
+DLKL[,u5hhc := value * phh]
+
+DLKL[,summary(phh)]
+DLKL[,qplot(phh)]           #
+
+## aggregates
+chhc <- DLKL[,.(u5hhc=sum(u5hhc),notes=sum(value),phh=mean(phh)),
+             by=.(repn,iso3)] #country aggregates
+
+ghhc <- DLKL[,.(u5hhc=sum(u5hhc),notes=sum(value),phh=mean(phh)),
+             by=.(repn)] #global aggregates
+
+summary(ghhc)
+ghhc[,mean(u5hhc)*1e-6]                 #around 3
+chhc[iso3=='ZAF',summary(u5hhc)]/DLK[iso3=='ZAF',sum(value)]
+
+chhc[iso3=='ZAF',qplot(u5hhc)]
+chhc[iso3=='AFG',qplot(u5hhc)]
+
+chhc <- chhc[,.(u5hhc=mean(u5hhc),u5hhc.sd=sd(u5hhc),
+                u5hhc.l=mean(log(u5hhc)),u5hhc.sdl=sd(log(u5hhc))),by=iso3]
+
+save(chhc,file='data/chhc.Rdata')
+
+## merge into parent data table
+DLC <- merge(DLC,chhc,by='iso3')
+
+
 ## LE
 ## bcgcov
 ## progression
 
-## tasks:
-## DF with numbers found?
-## split numbers by age
-## merge in PSA for parameters?
-nrep <- 10                              #NB 100 gives 60Mb
-DLL <- DL[rep(1:nrow(DL),nrep)]
-DLL[,repn:=rep(1:nrep,each=nrow(DL))]
-
 ## TODO need to advance for on off interventions
 
-## size means probably need to do as acat
+
+## ## ================= tree testing =========
 
 
-## ================= tree testing =========
+## tdf <- data.table(a=runif(1e4,0,15),iso3='LSO',lat=0,bcgcov=0.8)
+
+## ## compute other data
+## tdf[,CDR:=CDR(a)]
+## tdf[,CFRtxY:=CFRtxY(a)]
+## tdf[,CFRtxN:=CFRtxN(a)]
+## tdf[,coprev:=coprev(a)]
+## tdf[,IPTrr:=IPTrr(a)]
+## tdf[,ltbi.prev:=ltbi.prev(a,coprev)]
+## tdf[,pprogn:=progprob(a,bcgcov,lat)]
+## tdf[,rrtst:=RRtst(a)]
+## tdf[,inc:=ltbi.prev * pprogn]
+## tdf[,progn.LP.PTn:=inc]                     #change for RR!
+## tdf[,progn.LN.PTn:=0]                       #change for RR!
+## tdf[,progn.LP.PTp:=progn.LP.PTn*IPTrr]
+## tdf[,progn.LN.PTp:=progn.LN.PTn*IPTrr]
+## tdf[,PTcov.N:=0]
+## tdf[,PTcov.P:=0]
+## ## tdf[,LE:=LE(a)]
+
+## ## age categories
+## tdf[,acs:=cut(a,breaks = 0:15,include.lowest = TRUE,right=FALSE,ordered_result = TRUE)]
+## tdf[,ac:=cut(a,breaks=c(0,5,15),include.lowest = TRUE,right=FALSE,ordered_result = TRUE)]
+## tdf[,acb:=cut(a,breaks=c(0,1,2,5,10,15),include.lowest = TRUE,right=FALSE,ordered_result = TRUE)]
+## levels(tdf$acb)
 
 
-tdf <- data.table(a=runif(1e4,0,15),iso3='LSO',lat=0,bcgcov=0.8)
+## ## just looking at outcomes as simpler
+## G <- makeTfuns(outcomes,unique(outcomes$fieldsAll))
+## getAQ(outcomes,'check')
 
-## compute other data
-tdf[,CDR:=CDR(a)]
-tdf[,CFRtxY:=CFRtxY(a)]
-tdf[,CFRtxN:=CFRtxN(a)]
-tdf[,coprev:=coprev(a)]
-tdf[,IPTrr:=IPTrr(a)]
-tdf[,ltbi.prev:=ltbi.prev(a,coprev)]
-tdf[,pprogn:=progprob(a,bcgcov,lat)]
-tdf[,rrtst:=RRtst(a)]
-tdf[,inc:=ltbi.prev * pprogn]
-tdf[,progn.LP.PTn:=inc]                     #change for RR!
-tdf[,progn.LN.PTn:=0]                       #change for RR!
-tdf[,progn.LP.PTp:=progn.LP.PTn*IPTrr]
-tdf[,progn.LN.PTp:=progn.LN.PTn*IPTrr]
-tdf[,PTcov.N:=0]
-tdf[,PTcov.P:=0]
-## tdf[,LE:=LE(a)]
-
-## age categories
-tdf[,acs:=cut(a,breaks = 0:15,include.lowest = TRUE,right=FALSE,ordered_result = TRUE)]
-tdf[,ac:=cut(a,breaks=c(0,5,15),include.lowest = TRUE,right=FALSE,ordered_result = TRUE)]
-tdf[,acb:=cut(a,breaks=c(0,1,2,5,10,15),include.lowest = TRUE,right=FALSE,ordered_result = TRUE)]
-levels(tdf$acb)
+## summary(G$checkfun(tdf))
+## print(outcomes,'check','p','LE')
 
 
-## just looking at outcomes as simpler
-G <- makeTfuns(outcomes,unique(outcomes$fieldsAll))
-getAQ(outcomes,'check')
-
-summary(G$checkfun(tdf))
-print(outcomes,'check','p','LE')
-
-
-summary(G$de(tdf))
-summary(G$death(tdf))
-summary(G$deathfun(tdf))
-summary(G$LEfun(tdf))
-summary(G$incidencefun(tdf))
+## summary(G$de(tdf))
+## summary(G$death(tdf))
+## summary(G$deathfun(tdf))
+## summary(G$LEfun(tdf))
+## summary(G$incidencefun(tdf))
 
 
-summary(G$LEfun(tdf))
-getAQ(outcomes,'LE')
+## summary(G$LEfun(tdf))
+## getAQ(outcomes,'LE')
 
-## print(outcomes,'death','treatments','incidence','LE','p')
-## print(kexp,'p')
-## print(kexp,'incidence','LE')
-## print(kexp,'death','treatments')
-## print(kexp,'prevalent','LTBI')
+## ## print(outcomes,'death','treatments','incidence','LE','p')
+## ## print(kexp,'p')
+## ## print(kexp,'incidence','LE')
+## ## print(kexp,'death','treatments')
+## ## print(kexp,'prevalent','LTBI')
 
 
 
-F <- makeTfuns(kexp,unique(kexp$fieldsAll))
-getAQ(kexp,'LE')
-summary(F$checkfun(tdf))                         #!!
+## F <- makeTfuns(kexp,unique(kexp$fieldsAll))
+## getAQ(kexp,'LE')
+## summary(F$checkfun(tdf))                         #!!
 
 
 
 
-summary(F$prevalentfun(tdf))
-summary(F$incidencefun(tdf))
-summary(F$deathfun(tdf))
-summary(F$LEfun(tdf))
+## summary(F$prevalentfun(tdf))
+## summary(F$incidencefun(tdf))
+## summary(F$deathfun(tdf))
+## summary(F$LEfun(tdf))
 
 
-tdf$e.prevalent <- F$prevalentfun(tdf)
-tdf$e.incidence <- F$incidencefun(tdf)
-tdf$e.deaths <- F$deathfun(tdf)
-tdf$e.LE <- F$LEfun(tdf)
-
-
-
-## print(kexp,'LTBI','p')
-
-
-## print(kexp,'incidence','LE')
-## print(kexp,'death','treatments')
-## print(kexp,'prevalent','LTBI')
-
-plotter(kexp, varz=c('name','LE'), edgelabel = TRUE)
-plotter(kexp, varz=c('name','incidence'), edgelabel = TRUE)
+## tdf$e.prevalent <- F$prevalentfun(tdf)
+## tdf$e.incidence <- F$incidencefun(tdf)
+## tdf$e.deaths <- F$deathfun(tdf)
+## tdf$e.LE <- F$LEfun(tdf)
 
 
 
-## comparison by category
-tdf[,.(ep=mean(e.prevalent),
-       ei=mean(e.incidence),
-       ed=mean(e.deaths))]
+## ## print(kexp,'LTBI','p')
 
-tdf[,.(ep=mean(e.prevalent),
-       ei=mean(e.incidence),
-       ed=mean(e.deaths)),
-    by=ac]
 
-## incidence by TST status?
+## ## print(kexp,'incidence','LE')
+## ## print(kexp,'death','treatments')
+## ## print(kexp,'prevalent','LTBI')
+
+## plotter(kexp, varz=c('name','LE'), edgelabel = TRUE)
+## plotter(kexp, varz=c('name','incidence'), edgelabel = TRUE)
+
+
+
+## ## comparison by category
+## tdf[,.(ep=mean(e.prevalent),
+##        ei=mean(e.incidence),
+##        ed=mean(e.deaths))]
+
+## tdf[,.(ep=mean(e.prevalent),
+##        ei=mean(e.incidence),
+##        ed=mean(e.deaths)),
+##     by=ac]
+
+## ## incidence by TST status?
 
 
