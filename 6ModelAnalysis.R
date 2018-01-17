@@ -134,23 +134,10 @@ PSAR <- PSA[,.(ep=sum(e.prevalent),
 ## 50:50 cop:inc and ~110K d
 
 (PSARg[1,ed] - PSARg[2,ed])             #will be a bit lower with CDR correction
-## TODO why is ei about the same?? 
 ## TODO IPT read more
 ## TODO check NAs
 
 PSARg
-
-## ??
-## TODO prevalent disease has incidence=1 needs changing
-summary(PSA[intervention=='full',e.incidence]/PSA[intervention=='basecase',e.incidence])
-PSA[,summary(IPTrr)]
-
-summary(PSA[,progn.LP.PTp/progn.LP.PTn])
-
-PSA[intervention=='full',.(e.incidence,iso3,repn)]
-PSA[intervention=='basecase',.(e.incidence,iso3,repn)]
-
-
 
 summary(PSA)
 

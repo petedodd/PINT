@@ -131,6 +131,8 @@ print(kexp,'p')
 ## fill in incidence
 kexp$Set(incidence=0,filterFun=function(x)is.null(x$incidence))
 kexp$Set(incidence=0,filterFun=function(x)is.na(x$incidence))
+kexp$`Prevalent TB disease`$`TB disease outcomes`$incidence <- 0 #coprev doesn't count
+
 ## fill in LE
 kexp$Set(LE=0,filterFun=function(x)is.null(x$LE))
 kexp$Set(LE=0,filterFun=function(x)is.na(x$LE))
