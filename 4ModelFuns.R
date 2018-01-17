@@ -29,7 +29,8 @@ coprev(1:10)
 
 ## == case detection
 CDR <- function(mn,ab){
-  mn <- mn/runif(length(mn),min=0.5,max=1) #CDR adjustment
+  ## mn <- mn/runif(length(mn),min=0.5,max=1) #CDR adjustment
+  mn <- mn*(1/0.5 - (1/0.5-1)*runif(length(mn))) #CDR adjustment 2
   mn <- pmin(mn,1)
   a <- mn*ab
   b <- (1-mn)*ab
