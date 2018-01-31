@@ -1,13 +1,18 @@
-## TODO
-## neaten & check
-## edit outputs for current wdir etc
+## DHS data analysis for survey-weighted mean (CI) number of children in household by:
+##   country & year, & age category & sex of cohabitee
+## Raw DHS input data for this analysis is not provided due to license restrictions.
+##   (...it is also tens of gigabytes...)
+## However it is freely available on application to: https://dhsprogram.com/data/
+## the outputs of this analysis (which are included in this repo) are:
+##   AM.Rdata (used in onward analyses)
+##   graphs: India_04s.pdf, India_514s.pdf, AMplot1.pdf, AMplot2.pdf
 
 library(data.table)
 library(haven)
 
 dta2dt <- function(x) as.data.table(read_dta(x)) #utility function
 
-## My list of file names - TO CHANGE!
+## First lot of county data in STATA format
 dhsfilelist <- c('Bangladesh/BDHR61DT/BDHR61FL.DTA',
                  'Brazil/BRHR31DT/BRHR31FL.DTA',
                  'Cambodia/KHHR61DT/KHHR61FL.DTA',
@@ -54,7 +59,7 @@ for(fn in dhsfilelist){
 save(file='all.Rdata',all)
 
 
-## new data from Courtney...
+## Add second lot data from Courtney (in SPSS SAV format)
 sav2dt <- function(x) as.data.table(read_spss(x)) #utility function
 
 setwd('SAV')
@@ -74,24 +79,8 @@ for(fn in dhsfilelist){
 
 setwd('..')
 
+## tmp files
 save(file='all2.Rdata',all2)
-
-## tmp <- melt(data=all[[2]],id.vars = varz)
-## tmp[,N2:=length(variable),by=hhid]
-
-## tmp <- tmp[,age:=value[(N2[1]/2+1):N2[1]],by=hhid]
-## tmp[,n:=1:N2[1],by=hhid]
-## tmp[,keep:= (n<=N2[1]/2) & (!is.na(value) & !is.na(age)),by=hhid] #top half  & no-na
-
-## tmp <- tmp[keep==TRUE,.(srv=hv000,hhid=hhid,year=hv007,age=age,sex=value,
-##                         w=hv005,clid=hv021,strat=hv022,rurb=hv025,
-##                         hhnu=hv012,hhnd=hv013,hhk5u=hv014)]
-## tmp <- tmp[order(hhid),]
-## tmp[,iso2:=substr(srv,start=1,stop=2)]
-## if(tmp[1,nchar(year)]==2) tmp[,year:=paste0('19',year)]
-
-## ## tmp[hhid==tmp$hhid[1]]                  #inspect!
-
 load('all.Rdata')
 load('all2.Rdata')
 
@@ -124,13 +113,10 @@ for(i in 1:(length(all)+length(all2))){
 print(cnt)
 print(length(ALL))
 
-save(ALL,file='ALLallRAW.Rdata')
-
+save(ALL,file='ALLallRAW.Rdata')        #tmp file
 load('ALLallRAW.Rdata')
 
-## names(ALL[[1]])
-
-## oops BRA is chr! 17 on pbms...
+## oops BRA is chr! & other issues to correct:
 for(i in 1:length(ALL)){
   ALL[[i]][,srv:=as.factor(srv)]
   ALL[[i]][,hhid:=as.factor(hhid)]
@@ -147,89 +133,33 @@ for(i in 1:length(ALL)){
   ALL[[i]][,iso2:=as.factor(iso2)]
 }
 
-## tmp <- ALL[['IA5']]
+
+## collapse
 ALL <- do.call('rbind',ALL)             #CD5 and CD6
 ALL <- ALL[srv!='CD5',]                 #drop earlier survey
-ALL[,length(unique(iso2))]              #68
+ALL[,length(unique(iso2))]              #68 surveys
 
-load('~/Documents/WHO_TBreports/data2015/isodict.Rdata')
-## ISO <- as.data.table(ISO)
-## ISO[iso3=='NAM',iso2:='NA']
-## ISO$iso2 <- factor(ISO$iso2)
-## save(ISO,file='~/Documents/WHO_TBreports/data2015/isodict.Rdata')
+## use Courtney's spreadsheet to correctly assign country ids and years
+load('CY.Rdata')
+setkey(CY,srv)
+tmp <- CY[as.character(ALL[,srv])]
+ALL[,iso3:=tmp$iso3]
+ALL[,year:=tmp$year]
 
-cnz <- ALL[,unique(iso2)]
-
-(bad <- cnz[!cnz %in% unique(ISO$iso2)])         #some adjustments to make!
-
-## look up
-ISO[grep('India',country)]                       #IA is india -> IN
-ISO[grep('Burun',country)]                       #BU is burundi -> BI
-ISO[grep('Dominican',country)]                   #DR is dominican rep -> DO
-ISO[grep('Kaza',country)]                        #KK is kazakhstan -> KZ
-ISO[grep('Mada',country)]                        #MD is madagascar -> MG
-ISO[grep('Moldo',country)]                       #MB is moldova -> MD
-ISO[grep('Namib',country)]                       #NM is namibia -> NA
-
-## correct
-ALL[iso2=='IA',iso2:='IN']
-ALL[iso2=='BU',iso2:='BI']
-ALL[iso2=='DR',iso2:='DO']
-ALL[iso2=='KK',iso2:='KZ']
-ALL[iso2=='MD',iso2:='MG']
-ALL[iso2=='MB',iso2:='MD']
-ALL[iso2=='NM',iso2:='NA']
-
-ALL$iso2 <- factor(ALL$iso2)
-
-## ## check
-## ALL[iso2=='IN',]
-## ALL[iso2=='BI',]
-## ALL[iso2=='DO',]
-## ALL[iso2=='KZ',]
-## ALL[iso2=='MV',]
-## ALL[iso2=='MD',]
-## ALL[iso2=='MG',]
-## ALL[iso2=='NA',]
-## cnz2 <- ALL[,as.character(unique(iso2))]
-## setdiff(cnz,cnz2)
-## setdiff(cnz2,cnz)
-
-ALL <- merge(ALL,ISO[,.(iso2,iso3,g_whoregion)],by='iso2') 
+load('isodict.Rdata')                   #ISO dictionary
+,
+ALL <- merge(ALL,ISO[,.(iso2,iso3,g_whoregion)],by='iso3') 
 ALL[,length(unique(iso3))]              #68
 ALL <- ALL[order(iso3,hhid),]
 setkey(ALL,iso3)
 
-save(ALL,file='ALLall.Rdata')
-load('ALLall.Rdata')
+save(ALL,file='ALLall2.Rdata')
+load('ALLall2.Rdata')
 
-
-## TODO unweighted analysis or early sketch combining with notifns
-
+## survey analysis accounting for sampling design
 cnz <- ALL[,as.character(unique(iso3))]
-
-## for(cn in cnz){
-##   cat('.....',cn,'.......\n')
-##   print(ALL[cn,summary(strat)])
-## }
-
-
-
 library(survey)
 options(survey.lonely.psu="adjust")
-
-## for(i in 1:length(cnz)){
-##   cat('i=',i,': iso3=',cnz[i],'\n')
-##   tmp <- ALL[cnz[i]]
-##   strata <- tmp[,strat]
-##   if( any(is.na(strata)) ) strata <- rep(1,nrow(tmp))
-##   DHSdesign <- svydesign(id = tmp$clid,strata=strata,weights = tmp$w/1000000,data=tmp)
-##   print(tout <- svymean(~hhnu, DHSdesign))
-## }
-
-## ## 0-4, 5-14, 15-24, 25-34, 35-44, 45-54, 55-64, 65+
-## test <- 0:100
-## data.frame(age=test,acat=cut(test,breaks=c(0,5,15,25,35,45,55,65,Inf),include.lowest = TRUE,right = FALSE))
 
 ## add age categories
 brks <- c(0,5,15,25,35,45,55,65,Inf)
@@ -242,36 +172,12 @@ ALL[,n514:=sum(age>4 & age<15),by=.(iso3,hhid)]
 tmp <- ALL['IDN']
 tmp[hhid==tmp[1,hhid]]              #check
 
-## write summarize function that can do survey means by country for reduced df
 
-## quick
-ALL[,.(n04_m=mean(n04),n04_sd=sd(n04)),by=.(iso3,g_whoregion,acat,sex)]
-## bit slower but more flexible
-ALL[,{m=mean(n04);s=sd(n04); .SD[,.(n04_m=m,n04_s=s)]}, by=.(iso3,g_whoregion,acat,sex)]
-ALL[,{m=mean(n04);s=sd(n04); .SD[,.(n04_m=m,n04_s=s),by=.(acat,sex)]}, by=.(iso3,g_whoregion)] #NO assigns across
-
-
-
-## real deal including svy dsn
-## ## reduced version: iso3 %in% c('ARM','AZE','BEN')
-## AM <- ALL[iso3 %in% c('ARM','AZE','BEN'),{
-##   strata <- strat
-##   if( any(is.na(strata)) ) strata <- rep(1,length(strata))
-##   DHSdesign <- svydesign(id = clid,strata=strata,weights = w/1000000,data=.SD)
-##   print(iso3[1])
-##   .SD[,.(n04_m=svymean(~n04,DHSdesign)[1],
-##          n04_v=attributes(svymean(~n04,DHSdesign))$var[1],
-##          n514_m=svymean(~n514,DHSdesign)[1],
-##          n514_v=attributes(svymean(~n514,DHSdesign))$var[1]),
-##       by=.(acat,sex)]
-## }, by=.(iso3,g_whoregion)]
-
-## ## NOT worked as same across all age/sex!
-
-ALL <- ALL[sex!='9',]
+ALL <- ALL[sex!='9',]                   #drop unknown sex
 ALL$sex <- factor(ALL$sex)
 
-## this works: iso3 %in% c('ARM','AZE','BEN')
+## looped analysis for all countries, age groups, sex: WARNING takes a while!
+## check: iso3 %in% c('ARM','AZE','BEN')
 AM <- ALL[,{
   print(as.character(iso3[1]))
   print(as.character(acat[1]))
