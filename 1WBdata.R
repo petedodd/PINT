@@ -34,20 +34,13 @@ save(wbmr,file='data/wbmr.Rdata')
 
 load('data/wbmr.Rdata')
 
-load('data/CY.Rdata')                        #TODO
-
-CY[iso3=='NPL',year:=2011]              #correction
-## NCL correction
-CY[iso3=='NCL',iso3:='NIC']
-CY[iso3=='CYM',iso3:='KGZ']
-CY[iso3=='GUM',iso3:='GTM']
-
-wbcs <- merge(wb,CY,by='iso3',all.x = TRUE)
-wbcs <- wbcs[!is.na(srv)]               #only the DHS countries
+load('data/CY2.Rdata'); CY2 <- CY2[iso3!="PAK"]
+wbcs <- merge(wb,CY2,by='iso3',all.x = TRUE)
+wbcs <- wbcs[!is.na(DHS)]               #only the DHS countries
 wbcs[,cy:=as.integer(date)]
 wbcs[,dst:=abs(cy-year)]              #absolute difference from survey date
 wbcs <- wbcs[,.SD[dst==min(dst),],by=iso3] #closest to surveys
-wbcs[dst>5]
+wbcs[dst>0]
 save(wbcs,file='data/wbcs.Rdata')
 
 
@@ -57,8 +50,7 @@ mf <- model.frame(formula=~g_whoregion,data=tmp)
 XX2 <- model.matrix(mf,data=tmp)
 
 
-## cast for comparison?
-
+## cast for comparison
 ## for modelling
 XX <- dcast(wbcs[,.(iso3,indicatorID,value)],iso3~indicatorID,value.var = 'value')
 XX[,SI.POV.GINI:=NULL]
@@ -101,9 +93,6 @@ save(XP2,file='XP2.Rdata')
 ## ============== life table data
 
 library(rgho)
-## vignette("b-dimensions", "rgho")
-## vignette("c-codes-gho", "rgho")
-
 ## nMx - age-specific death rate between ages x and x+n	LIFE_0000000029
 ## nqx - probability of dying between ages x and x+n	LIFE_0000000030
 ## lx - number of people left alive at age x	LIFE_0000000031
