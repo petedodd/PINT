@@ -132,7 +132,7 @@ y1p <- merge(y1p,AM[!acat %in% c('[0,5)','[5,15)'),.(datp=n04_m,acat,sex,iso3)],
 rg <- c(0,2.5)
 
 
-ggplot(y1p,aes(datp,n04_m,col=acat,shape=sex)) +
+gp <- ggplot(y1p,aes(datp,n04_m,col=acat,shape=sex)) +
   geom_point() +
   geom_abline(intercept = 0,slope=1,lty=2) +
   coord_fixed(ratio=1) +
@@ -140,13 +140,14 @@ ggplot(y1p,aes(datp,n04_m,col=acat,shape=sex)) +
   facet_wrap(~g_whoregion) +
   xlab('Data') + ylab('Prediction')
 
-ggsave('ng/Predictions.pdf')
+ggsave('graphs/2Predictions.pdf',gp)
+ggsave('graphs/2Predictions.png',gp)
 
 ## which countries have the prediction outliers
 ## y1p[abs(1-datp/n04_m)>.5,]
 (bad <- y1p[abs(n04_m-datp)>.6,as.character(unique(iso3))])
 
-ggplot(data=y1p[g_whoregion %in% c('AFR','EMR','EUR')],
+gp <- ggplot(data=y1p[g_whoregion %in% c('AFR','EMR','EUR')],
        aes(x=acat,y=datp,group=iso3,col=iso3)) +
   facet_grid(g_whoregion~sex) +
   geom_point(data=y1p[iso3 %in% bad],aes(x=acat,y=datp),shape=2)  +
@@ -154,7 +155,8 @@ ggplot(data=y1p[g_whoregion %in% c('AFR','EMR','EUR')],
   geom_point() + geom_line() +
   theme(legend.position="none",axis.text.x = element_text(angle=90))
 
-ggsave('graphs/2BadPredictionsOutlie.pdf')
+ggsave('graphs/2BadPredictionsOutlie.pdf',gp)
+ggsave('graphs/2BadPredictionsOutlie.png',gp)
 
 ## ----- residuals
 y1 <- y0df[,.(n04_m=mean(n04_m)),by=.(iso3,acat,sex,g_whoregion)]
@@ -162,7 +164,7 @@ y1 <- merge(y1,AM[!acat %in% c('[0,5)','[5,15)'),.(datp=n04_m,acat,sex,iso3)],
             by=c('iso3','acat','sex'),all.x=TRUE)
 rg <- c(0,2.5)
 
-ggplot(y1,aes(datp,n04_m,col=acat,shape=sex)) +
+gp <- ggplot(y1,aes(datp,n04_m,col=acat,shape=sex)) +
   geom_point() +
   geom_abline(intercept = 0,slope=1,lty=2) +
   coord_fixed(ratio=1) +
@@ -170,7 +172,8 @@ ggplot(y1,aes(datp,n04_m,col=acat,shape=sex)) +
   facet_wrap(~g_whoregion) +
   xlab('Data') + ylab('Fitted value')
 
-ggsave('ng/Residuals.pdf')
+ggsave('graphs/2Residuals.pdf',gp)
+ggsave('graphs/2Residuals.png',gp)
 
 ## ========================
 ## prediction for all cns!
@@ -199,3 +202,4 @@ U5[,variable:=NULL]
 save(U5,file='data/U5.Rdata')
 
 ## TODO copy over o5s
+## TODO check EUR countries
