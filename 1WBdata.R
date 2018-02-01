@@ -59,7 +59,7 @@ XX[,SP.POP.0014.TO:=NULL]
 XX[,SP.POP.TOTL:=NULL]
 head(XX)
 dim(XX)
-save(XX,file='XX.Rdata')
+save(XX,file='data/XX.Rdata')
 
 XX2 <- merge(ISO[,.(iso3,g_whoregion)],XX,by='iso3',all.x = FALSE,all.y=TRUE)
 tmp <- XX2
@@ -67,7 +67,7 @@ tmp <- tmp[,2:ncol(tmp),with=FALSE]
 mf <- model.frame(formula=~.,data=tmp)
 tmp <- model.matrix(mf,data=tmp)
 XX2 <- tmp
-save(XX2,file='XX2.Rdata')
+save(XX2,file='data/XX2.Rdata')
 
 
 ## for prediction
@@ -79,7 +79,7 @@ XP[,SP.POP.TOTL:=NULL]
 XP
 dim(XP)
 XP <- XP[!is.na(EN.POP.DNST+NY.GDP.PCAP.KD+SP.DYN.IMRT.IN+SP.URB.TOTL.IN.ZS+FRACK+SP.DYN.LE00.IN+SP.DYN.TFRT.IN),]
-save(XP,file='XP.Rdata')
+save(XP,file='data/XP.Rdata')
 
 
 XP2 <- merge(ISO[,.(iso3,g_whoregion)],XP,by='iso3',all.x = FALSE,all.y=TRUE)
@@ -88,7 +88,7 @@ tmp <- tmp[,2:ncol(tmp),with=FALSE]
 mf <- model.frame(formula=~.,data=tmp)
 tmp <- model.matrix(mf,data=tmp)
 XP2 <- tmp
-save(XP2,file='XP2.Rdata')
+save(XP2,file='data/XP2.Rdata')
 
 ## ============== life table data
 
@@ -144,6 +144,6 @@ res['GBR']
 
 ## save out
 LEA <- res
-save(LEA,file='LEA.Rdata')
+save(LEA,file='data/LEA.Rdata')
 
 
