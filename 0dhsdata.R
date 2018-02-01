@@ -203,42 +203,32 @@ ggplot(AM,aes(x=acat,y=n04_m,col=iso3,group=iso3)) +
   geom_errorbar(aes(ymin=n04_m-1.96*sqrt(n04_v),ymax=n04_m+1.96*sqrt(n04_v)),width=0) + 
   facet_grid(g_whoregion~sex)
 
-ggsave('AMplot1.pdf',height=14)                    #save out
+ggsave('graphs/0AMplot1.pdf',height=14)                    #save out
 
 ggplot(AM,aes(x=acat,y=n514_m,col=iso3,group=iso3)) +
   geom_point() + geom_line() +
-  geom_errorbar(aes(ymin=n514_m-1.96*sqrt(n514_v),ymax=n514_m+1.96*sqrt(n514_v)),width=0) + 
+  geom_errorbar(aes(ymin=n514_m-1.96*sqrt(n514_v),ymax=n514_m+1.96*sqrt(n514_v)),
+                width=0) +
   facet_grid(g_whoregion~sex)
 
-ggsave('AMplot2.pdf',height=14)                    #save out
+ggsave('graphs/0AMplot2.pdf',height=14)                    #save out
 
 
-## response variable?? not normal? Poissony? neg-bin?
-## plot distribution
-ALL['IDN'][acat=='[25,35)',qplot(n04)]
 
-## overall TODO
-## rural/urban at some point
 
-## TODO include India graphs here
 ## ===================================================
 
-## load India
-setwd('India')
-## df <- read_dta('IAPR52DT/IAPR52FL.dta')
-## P <- as.data.table(df)
-## df <- df[1:10,]
+## load Indian DHS data set again
 P <- dta2dt('IAPR52DT/IAPR52FL.dta')    # ~ 1.5GB
-setwd('..')
 
 ## see MAP file for mapping
 varz <- c('hhid',
           'hv000',
           'hv102', #de jure household members, 1 if person and missing ow
           'hv005', #weight
-          'hv011', #mum alive?
+          'hv011', #mum alive
           'hv012', #mum id
-          'hv013', #dad alive?
+          'hv013', #dad alive
           'hv014', #dad id
           'hv021', #cluster id
           'hv022', #strata var
@@ -262,44 +252,24 @@ P[,TB:=factor(sh30)]
 P[,sex:=c('Male','Female')[hv104]]      #recode sex
 P[,region:=c('urban','rural')[hv025]]      #recode rural/urban
 
-
-
 ## add some more
 P[,n:=sum(hv104>0),by=hhid]             #hh size
 P[,n04:=sum(hv105<5),by=hhid]           #no kids <5 in hh
 P[,n514:=sum(hv105>4 & hv105<15),by=hhid]
 P[hhid==P[1,1,with=FALSE]]              #check
 
-qplot(data=P,factor(n04))               #inspect
-
 ## patterns
 ## ------ 0-4 ------
 ggplot(P[hv105>14],aes(x=hv105,y=n04,group=TB,col=TB)) +
   geom_smooth() +
   facet_grid(region ~ sex) +
-  xlab('Age') + ylab('No. cohabiting children age 0-4') 
-ggsave('India_04s.pdf')
-
-## ## check
-## ggplot(P[hv105>14],aes(x=hv105,y=n04,group=TB,col=TB)) +
-##   stat_summary(fun.y = mean, geom="line") + 
-##   facet_grid(region ~ sex) +
-##   xlab('Age') + ylab('No. cohabiting children age 0-4') 
-## ggsave('India_04l.pdf')
+  xlab('Age') + ylab('Number cohabiting children age 0-4') 
+ggsave('graphs/0India_04s.pdf')
 
 ## ------ 5-14 ------
 ggplot(P[hv105>14],aes(x=hv105,y=n514,group=TB,col=TB)) +
   geom_smooth() +
   facet_grid(region ~ sex) +
   xlab('Age') + ylab('No. cohabiting children age 5-14') 
-ggsave('India_514s.pdf')
-
-## ## check
-## ggplot(P[hv105>14],aes(x=hv105,y=n514,group=TB,col=TB)) +
-##   stat_summary(fun.y = mean, geom="line") + 
-##   facet_grid(region ~ sex) +
-##   xlab('Age') + ylab('No. cohabiting children age 5-14') 
-## ggsave('India_514l.pdf')
-
-
+ggsave('graphs/0India_514s.pdf')
 

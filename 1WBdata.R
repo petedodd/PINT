@@ -2,16 +2,8 @@
 ## - world bank covariate data for household structure modelling
 ## - global health observatory life-table data
 
-## TODO copy over from:
-## check corrections
-## /Users/pjd/Documents/Rwork/hhstructure/hhint/WBDS.R and
-## and neaten & deal with NAs for LTs
-
-
 ## ===================== world bank covariate data
 library(wbstats)
-## see https://cengel.github.io/gearup2016/worldbank.html
-## other: https://magesblog.com/post/2016-04-26-new-r-package-to-access-world-bank-data/
 
 new_wb_cache <- wbcache()
 
@@ -42,7 +34,8 @@ save(wbmr,file='data/wbmr.Rdata')
 load('data/wbmr.Rdata')
 
 load('data/CY.Rdata')                        #TODO
-CY[iso3=='NPL',year:=2006]              #correction
+
+CY[iso3=='NPL',year:=2011]              #correction
 ## NCL correction
 CY[iso3=='NCL',iso3:='NIC']
 CY[iso3=='CYM',iso3:='KGZ']
