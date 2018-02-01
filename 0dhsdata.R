@@ -7,6 +7,7 @@
 ##   AM.Rdata (used in onward analyses)
 ##   graphs: India_04s.pdf, India_514s.pdf, AMplot1.pdf, AMplot2.pdf
 
+rm(list=ls())
 library(data.table)
 library(haven)
 
@@ -140,19 +141,19 @@ ALL <- ALL[srv!='CD5',]                 #drop earlier survey
 ALL[,length(unique(iso2))]              #68 surveys
 
 ## use Courtney's spreadsheet to correctly assign country ids and years
-load('CY.Rdata')
-setkey(CY,srv)
-tmp <- CY[as.character(ALL[,srv])]
+load('CY2.Rdata')
+CY2 <- CY2[iso3!='PAK']
+setkey(CY2,DHS)
+ALL[,dhs:=substr(srv,start=1,stop=2)]
+tmp <- CY2[as.character(ALL[,dhs])]
 ALL[,iso3:=tmp$iso3]
 ALL[,year:=tmp$year]
-
+ALL[,dhs:=NULL]
 load('isodict.Rdata')                   #ISO dictionary
-,
 ALL <- merge(ALL,ISO[,.(iso2,iso3,g_whoregion)],by='iso3') 
 ALL[,length(unique(iso3))]              #68
 ALL <- ALL[order(iso3,hhid),]
 setkey(ALL,iso3)
-
 save(ALL,file='ALLall2.Rdata')
 load('ALLall2.Rdata')
 
@@ -198,20 +199,20 @@ AM <- ALL[,{
 save(AM,file='AM.Rdata')                #save out
 
 ## quick look
-ggplot(AM,aes(x=acat,y=n04_m,col=iso3,group=iso3)) +
+gp <- ggplot(AM,aes(x=acat,y=n04_m,col=iso3,group=iso3)) +
   geom_point() + geom_line() +
   geom_errorbar(aes(ymin=n04_m-1.96*sqrt(n04_v),ymax=n04_m+1.96*sqrt(n04_v)),width=0) + 
   facet_grid(g_whoregion~sex)
 
-ggsave('graphs/0AMplot1.pdf',height=14)                    #save out
+ggsave('graphs/0AMplot1.pdf',gp,height=14)                    #save out
 
-ggplot(AM,aes(x=acat,y=n514_m,col=iso3,group=iso3)) +
+gp <- ggplot(AM,aes(x=acat,y=n514_m,col=iso3,group=iso3)) +
   geom_point() + geom_line() +
   geom_errorbar(aes(ymin=n514_m-1.96*sqrt(n514_v),ymax=n514_m+1.96*sqrt(n514_v)),
                 width=0) +
   facet_grid(g_whoregion~sex)
 
-ggsave('graphs/0AMplot2.pdf',height=14)                    #save out
+ggsave('graphs/0AMplot2.pdf',gp,height=14)                    #save out
 
 
 

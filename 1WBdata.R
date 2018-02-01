@@ -2,6 +2,7 @@
 ## - world bank covariate data for household structure modelling
 ## - global health observatory life-table data
 
+rm(list=ls())
 ## ===================== world bank covariate data
 library(wbstats)
 
