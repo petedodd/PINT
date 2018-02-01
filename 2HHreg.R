@@ -22,19 +22,10 @@ AS <- 2*length(unique(AM$acat))
 
 AM[,y0v:=log(1+n04_v/n04_m^2)]                                    #log
 AM[,y0m:=log(n04_m)]                                    #log
-## do differently
-NP <- 1
-
-
+NP <- 1                                                 #initialize
 
 AMW <- dcast(AM[!acat %in% c('[0,5)','[5,15)')],
              iso3 ~ acat+sex,value.var=c('y0m','y0v'))
-
-## corrections TODO check
-AMW[iso3=='NCL',iso3:='NIC']
-AMW[iso3=='CYM',iso3:='KGZ']
-AMW[iso3=='GUM',iso3:='GTM']
-
 
 ## =================================================
 ## load up covariate data
