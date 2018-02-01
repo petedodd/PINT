@@ -205,6 +205,7 @@ gp <- ggplot(AM,aes(x=acat,y=n04_m,col=iso3,group=iso3)) +
   facet_grid(g_whoregion~sex)
 
 ggsave('graphs/0AMplot1.pdf',gp,height=14)                    #save out
+ggsave('graphs/0AMplot1.png',gp,height=14)                    #save out
 
 gp <- ggplot(AM,aes(x=acat,y=n514_m,col=iso3,group=iso3)) +
   geom_point() + geom_line() +
@@ -213,6 +214,7 @@ gp <- ggplot(AM,aes(x=acat,y=n514_m,col=iso3,group=iso3)) +
   facet_grid(g_whoregion~sex)
 
 ggsave('graphs/0AMplot2.pdf',gp,height=14)                    #save out
+ggsave('graphs/0AMplot2.png',gp,height=14)                    #save out
 
 
 
@@ -261,16 +263,18 @@ P[hhid==P[1,1,with=FALSE]]              #check
 
 ## patterns
 ## ------ 0-4 ------
-ggplot(P[hv105>14],aes(x=hv105,y=n04,group=TB,col=TB)) +
+gp <- ggplot(P[hv105>14],aes(x=hv105,y=n04,group=TB,col=TB)) +
   geom_smooth() +
   facet_grid(region ~ sex) +
   xlab('Age') + ylab('Number cohabiting children age 0-4') 
-ggsave('graphs/0India_04s.pdf')
+ggsave('graphs/0India_04s.pdf',gp)
+ggsave('graphs/0India_04s.png',gp)
 
 ## ------ 5-14 ------
-ggplot(P[hv105>14],aes(x=hv105,y=n514,group=TB,col=TB)) +
+gp <- ggplot(P[hv105>14],aes(x=hv105,y=n514,group=TB,col=TB)) +
   geom_smooth() +
   facet_grid(region ~ sex) +
   xlab('Age') + ylab('No. cohabiting children age 5-14') 
-ggsave('graphs/0India_514s.pdf')
+ggsave('graphs/0India_514s.pdf',gp)
+ggsave('graphs/0India_514s.png',gp)
 
