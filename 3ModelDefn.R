@@ -158,22 +158,3 @@ kexp$Set(check=1,filterFun=isLeaf)
 
 print(kexp,'prevalent','check')
 
-## ==== helper funs =====
-## ## fill in LTBI
-## kexp$Set(LTBI=0,filterFun=function(x)is.null(x[['LTBI']]))
-## kexp$Set(LTBI=0,filterFun=function(x)is.na(x[['LTBI']]))
-
-## ## TODO introduce package function to do the above
-## setblanks <- function(node,variable,...){ #works by side-effect?
-##   ## expr <- parse(text=paste(variable,value,sep='='))
-##   ## print(expr)
-##   node$Set(...,filterFun=function(x)is.null(x[[variable]]))
-##   node$Set(...,filterFun=function(x)is.na(x[[variable]]))
-## }
-
-## setblanks(kexp,'LTBI',LTBI=0)
-## print(kexp,'LTBI')
-
-
-
-
