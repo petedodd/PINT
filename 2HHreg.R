@@ -35,6 +35,28 @@ load('data/XP.Rdata')
 load('data/XP2.Rdata')
 load('data/isodict.Rdata')
 
+
+## investigate transformation
+summary(XP)
+XP$EN.POP.DNST <- log(XP$EN.POP.DNST)
+XP$NY.GDP.PCAP.KD <- log(XP$NY.GDP.PCAP.KD)
+XP$SP.DYN.IMRT.IN <- log(XP$SP.DYN.IMRT.IN)
+XP$SP.DYN.TFRT.IN <- log(XP$SP.DYN.TFRT.IN)
+XP$SP.DYN.LE00.IN <- XP$SP.DYN.LE00.IN^2
+
+XPM <- melt(XP,id='iso3')
+ggplot(XPM,aes(value)) +
+  facet_wrap(~variable,scales='free') + geom_histogram()
+
+## transform:
+for(nm in c('EN.POP.DNST','NY.GDP.PCAP.KD','SP.DYN.IMRT.IN','SP.DYN.TFRT.IN')){
+  XX2[,nm] <- log(XX2[,nm])
+  XP2[,nm] <- log(XP2[,nm])
+}
+XX2[,'SP.DYN.LE00.IN'] <- XX2[,'SP.DYN.LE00.IN']^2
+XP2[,'SP.DYN.LE00.IN'] <- XP2[,'SP.DYN.LE00.IN']^2
+
+
 ## check covarates aligned with AMW
 setdiff(XX[,as.character(iso3)],AMW[,as.character(iso3)])
 setdiff(AMW[,as.character(iso3)],XX[,as.character(iso3)])
@@ -191,7 +213,7 @@ colnames(y0) <- colnames(ZZ)
 y0df <- as.data.table(y0)
 y0df[,iso3:=XP$iso3]
 y0df[,rep:=rep <- rep(1:length(tmpp),each=nrow(tmpp[[1]]))]
-y0df[,]
+## y0df[,]
 
 y0df <- melt(y0df,id=c('iso3','rep'))
 
@@ -199,10 +221,11 @@ U5 <- y0df
 U5[,sex:=factor(getsex(variable))]
 U5[,acat:=factor(getacat(variable))]
 U5[,variable:=NULL]
+U5 <- U5[,.(value=mean(value),HHu5logsd=sd(value)),by=.(iso3,sex,acat)] ## mean
 save(U5,file='data/U5.Rdata')
 
-## TODO copy over o5s
-## TODO check EUR countries
+
+## check nothing ridiculous
 load('data/isodict.Rdata')
 U5 <- merge(U5,ISO[,.(iso3,g_whoregion)],by='iso3')
 
@@ -215,28 +238,7 @@ ggplot(data=U5,
   geom_point() + geom_line() +
   facet_wrap(~g_whoregion) + theme(legend.position='none')
 
-
-(bad <- U5[exp(value)>10,unique(iso3)])
-setkey(ISO,iso3)
-ISO[as.character(bad)]
+## TODO copy over o5s
 
 
-load('data/XP.Rdata')
-XP[iso3 %in% bad]
-bad <- as.character(bad)
 
-XPM <- melt(XP,id='iso3')
-## XPM[,bad:=NULL]
-XPM[,off:='false']
-sum(XPM[,as.character(iso3)] %in% bad)
-XPM[as.character(iso3) %in% bad,]
-XPM[as.character(iso3) %in% bad,off:='true']
-XPM[,unique(off)]
-
-ggplot(XPM,aes(iso3,value,col=off)) +
-  coord_flip() + facet_wrap(~variable,scales='free') + geom_point()
-
-ggplot(XPM,aes(value)) +
-  facet_wrap(~variable,scales='free') + geom_histogram()
-
-## TODO transform variables
