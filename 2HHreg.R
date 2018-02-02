@@ -203,3 +203,40 @@ save(U5,file='data/U5.Rdata')
 
 ## TODO copy over o5s
 ## TODO check EUR countries
+load('data/isodict.Rdata')
+U5 <- merge(U5,ISO[,.(iso3,g_whoregion)],by='iso3')
+
+ggplot(data=U5[g_whoregion=='EUR'],
+       aes(acat,exp(value),group=paste0(iso3,sex),col=iso3)) +
+  geom_point() + geom_line()
+
+ggplot(data=U5,
+       aes(acat,exp(value),group=paste0(iso3,sex),col=iso3)) +
+  geom_point() + geom_line() +
+  facet_wrap(~g_whoregion) + theme(legend.position='none')
+
+
+(bad <- U5[exp(value)>10,unique(iso3)])
+setkey(ISO,iso3)
+ISO[as.character(bad)]
+
+
+load('data/XP.Rdata')
+XP[iso3 %in% bad]
+bad <- as.character(bad)
+
+XPM <- melt(XP,id='iso3')
+## XPM[,bad:=NULL]
+XPM[,off:='false']
+sum(XPM[,as.character(iso3)] %in% bad)
+XPM[as.character(iso3) %in% bad,]
+XPM[as.character(iso3) %in% bad,off:='true']
+XPM[,unique(off)]
+
+ggplot(XPM,aes(iso3,value,col=off)) +
+  coord_flip() + facet_wrap(~variable,scales='free') + geom_point()
+
+ggplot(XPM,aes(value)) +
+  facet_wrap(~variable,scales='free') + geom_histogram()
+
+## TODO transform variables

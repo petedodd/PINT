@@ -34,7 +34,7 @@ save(wbmr,file='data/wbmr.Rdata')
 
 load('data/wbmr.Rdata')
 
-load('data/CY2.Rdata'); CY2 <- CY2[iso3!="PAK"]
+load('data/CY2.Rdata')
 wbcs <- merge(wb,CY2,by='iso3',all.x = TRUE)
 wbcs <- wbcs[!is.na(DHS)]               #only the DHS countries
 wbcs[,cy:=as.integer(date)]
