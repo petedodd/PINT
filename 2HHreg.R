@@ -1,7 +1,11 @@
-## TODO
-## edit, neaten, check;
-## O5s
-
+## this file applies a multivariate bayesian regression (with measurement error)
+## to the DHS data on cohabiting children (separately for [0,5) and [5,14))
+## using the World Bank covariate data
+## predictions of the number of cohabiting children in each age group are made
+## for all counties in 2015 by age category and sex of individual
+## the bayesian model is fitted using Gibbs sampling, as implemented in the
+## package mvregerr, which must be first installed using devtools thus:
+## devtools::install_github('petedodd/mvregerr',dependencies=TRUE)
 rm(list=ls())
 load('data/AM.Rdata')
 
@@ -98,7 +102,7 @@ N <- nrow(ZZ)
 
 
 ## =================================================
-## fitting
+## fitting for [0,5)
 
 library(mvregerr)
 
@@ -240,5 +244,149 @@ ggplot(data=U5,
 
 ## TODO copy over o5s
 
+## ============ 5-14s ===============
 
+AM[,y0v:=log(1+n514_v/n514_m^2)]                                    #log
+AM[,y0m:=log(n514_m)]                                    #log
+
+AMW <- dcast(AM[!acat %in% c('[0,5)','[5,15)')],
+             iso3 ~ acat+sex,value.var=c('y0m','y0v'))
+
+ZZ <- as.matrix(AMW[,.SD,.SDcols=names(AMW)[-1]])
+EPS <- ZZ[,grepl('v',colnames(ZZ))]     #variances
+ZZ <- ZZ[,grepl('m',colnames(ZZ))]      #means
+K <- ncol(ZZ)
+P <- ncol(XX2)
+N <- nrow(ZZ)
+
+
+out <- mvregerrGS(ZZ,EPS,XX2, nchain = 5*4*50,
+                init=list(Psi=diag(ncol(ZZ))*5e-2,nu=5,B=BP),
+                every = 20,record = c('Y','beta'),XP=XX2)
+
+tmp <- out$Y
+tmpp <- out$YP                           #PREDICTION!!
+
+y0 <- do.call('rbind',tmp)
+colnames(y0) <- colnames(ZZ)
+y0df <- as.data.frame(y0)
+y0df$iso3 <- AMW[,as.character(iso3)]
+y0df$rep <- rep(1:length(tmp),each=nrow(tmp[[1]]))
+y0df <- as.data.table(y0df)
+y0df <- melt(y0df,id=c('iso3','rep'))
+
+y0p <- do.call('rbind',tmpp)
+colnames(y0p) <- colnames(ZZ)
+y0pdf <- as.data.frame(y0p)
+y0pdf$iso3 <- AMW[,as.character(iso3)]
+y0pdf$rep <- rep(1:length(tmp),each=nrow(tmp[[1]]))
+y0pdf <- as.data.table(y0pdf)
+y0pdf <- melt(y0pdf,id=c('iso3','rep'))
+
+
+## add in acat & exp of value
+y0df[,acat:=factor(getacat(variable))]
+y0df[,sex:=factor(getsex(variable))]
+y0df[,n514_m:=exp(value)]
+
+y0pdf[,acat:=factor(getacat(variable))]
+y0pdf[,sex:=factor(getsex(variable))]
+y0pdf[,n514_m:=exp(value)]
+
+## merge in g_whoregion
+tmp <-  merge(y0df,ISO[,.(iso3,g_whoregion)],by='iso3',all.x=TRUE,all.y=FALSE)
+y0df <- tmp
+
+tmp <-  merge(y0pdf,ISO[,.(iso3,g_whoregion)],by='iso3',all.x=TRUE,all.y=FALSE)
+y0pdf <- tmp
+
+
+
+## ===== residuals/prediction errors
+## ----- predictions
+y1p <- y0pdf[,.(n514_m=mean(n514_m)),by=.(iso3,acat,sex,g_whoregion)]
+y1p <- merge(y1p,AM[!acat %in% c('[0,5)','[5,15)'),.(datp=n514_m,acat,sex,iso3)],
+            by=c('iso3','acat','sex'),all.x=TRUE)
+rg <- c(0,5)
+
+
+gp <- ggplot(y1p,aes(datp,n514_m,col=acat,shape=sex)) +
+  geom_point() +
+  geom_abline(intercept = 0,slope=1,lty=2) +
+  coord_fixed(ratio=1) +
+  xlim(rg) + ylim(rg) +
+  facet_wrap(~g_whoregion) +
+  xlab('Data') + ylab('Prediction')
+
+ggsave('graphs/2Predictions514.pdf',gp)
+ggsave('graphs/2Predictions514.png',gp)
+
+## which countries have the prediction outliers
+## y1p[abs(1-datp/n04_m)>.5,]
+(bad <- y1p[abs(n514_m-datp)>.7,as.character(unique(iso3))])
+
+gp <- ggplot(data=y1p[g_whoregion %in% c('AFR','EMR')],
+       aes(x=acat,y=datp,group=iso3,col=iso3)) +
+  facet_grid(g_whoregion~sex) +
+  geom_point(data=y1p[iso3 %in% bad],aes(x=acat,y=datp),shape=2)  +
+  geom_label(data=y1p[iso3 %in% bad],aes(x=acat,y=datp,label=iso3))+
+  geom_point() + geom_line() +
+  theme(legend.position="none",axis.text.x = element_text(angle=90))
+
+ggsave('graphs/2BadPredictionsOutlie514.pdf',gp)
+ggsave('graphs/2BadPredictionsOutlie514.png',gp)
+
+## ----- residuals
+y1 <- y0df[,.(n514_m=mean(n514_m)),by=.(iso3,acat,sex,g_whoregion)]
+y1 <- merge(y1,AM[!acat %in% c('[0,5)','[5,15)'),.(datp=n514_m,acat,sex,iso3)],
+            by=c('iso3','acat','sex'),all.x=TRUE)
+rg <- c(0,5)
+
+gp <- ggplot(y1,aes(datp,n514_m,col=acat,shape=sex)) +
+  geom_point() +
+  geom_abline(intercept = 0,slope=1,lty=2) +
+  coord_fixed(ratio=1) +
+  xlim(rg) + ylim(rg) +
+  facet_wrap(~g_whoregion) +
+  xlab('Data') + ylab('Fitted value')
+
+ggsave('graphs/2Residuals514.pdf',gp)
+ggsave('graphs/2Residuals514.png',gp)
+
+## ========================
+## prediction for all cns!
+
+out <- mvregerrGS(ZZ,EPS,XX2, nchain = 5*4*50,
+                init=list(Psi=diag(ncol(ZZ))*5e-2,nu=5,B=BP),
+                every = 5*20,record = c('Y','beta'),XP=XP2)
+
+tmpp <- out$YP                           #PREDICTION!!
+
+y0 <- do.call('rbind',tmpp)
+colnames(y0) <- colnames(ZZ)
+y0df <- as.data.table(y0)
+y0df[,iso3:=XP$iso3]
+y0df[,rep:=rep <- rep(1:length(tmpp),each=nrow(tmpp[[1]]))]
+
+y0df <- melt(y0df,id=c('iso3','rep'))
+
+O5 <- y0df
+O5[,sex:=factor(getsex(variable))]
+O5[,acat:=factor(getacat(variable))]
+O5[,variable:=NULL]
+O5 <- O5[,.(value=mean(value),HHu5logsd=sd(value)),by=.(iso3,sex,acat)] ## mean
+save(O5,file='data/O5.Rdata')
+
+
+## check nothing ridiculous
+O5 <- merge(O5,ISO[,.(iso3,g_whoregion)],by='iso3')
+
+ggplot(data=O5,
+       aes(acat,exp(value),group=paste0(iso3,sex),col=iso3)) +
+  geom_point() + geom_line() + facet_wrap(~g_whoregion) + theme(legend.position='none')
+
+ggplot(data=U5,
+       aes(acat,exp(value),group=paste0(iso3,sex),col=iso3)) +
+  geom_point() + geom_line() +
+  facet_wrap(~g_whoregion) + theme(legend.position='none')
 
