@@ -1,7 +1,7 @@
 ## TODO
 ## remove most sanity checks so can be sourced
 ## think LHS
-
+source("3ModelDefn.R")
 ## read in data
 PZ <- parse.parmtable(data = read.csv('data/PTBHHCT.csv')) #no test
 ## PZ <- parse.parmtable(data = read.csv('data/PTBHHCT.csv'), #test!
@@ -37,6 +37,7 @@ CDR <- function(mn,ab){
   rbeta(n=length(mn),shape1 = a,shape2 = b)
   ## 0.4
 }
+## TODO check and change
 
 ## == CFR on tx
 CFRtxY <- function(a){#,hiv,art){        #NB optimized for clarity not speed
@@ -46,6 +47,7 @@ CFRtxY <- function(a){#,hiv,art){        #NB optimized for clarity not speed
   tmp
 }
 CFRtxY(1:10)                            #test
+## TODO hivartOR
 
 ## == CFR off tx
 CFRtxN <- function(a){#,hiv,art){
@@ -58,7 +60,7 @@ CFRtxN <- function(a){#,hiv,art){
   tmp
 }
 CFRtxN(1:10)                            #test
-
+## TODO hiv
 
 ## == LTBI infection probability
 #NB this is LTBI given not active: it is taken to be max(0,LTBI-coprev)
@@ -103,6 +105,7 @@ progprob <- function(a,bcgcov,lat){
   dtb <- pp*pd*(1-bcgcov*(1-dBCG)*f)           #non pulmonary
   ptb + dtb                             #all TB
 }
+## TODO
 
 summary(progprob(runif(1e3,0,1),0.99,90))
 

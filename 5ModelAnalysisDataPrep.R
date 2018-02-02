@@ -1,22 +1,15 @@
 ## TODO
-## assemble parent data:
-## - country list /
-## - demography (ideally year) (not available year)
-## - LAT /
-## - BCG coverage by year/age
-## - LE at age (done already?)
-## - notifications by age /
-## - estimated incidence by age /
-## - existing IPT ?? X
-
-
-## TODO
 ## other
 ## - HIV model & data
-## - LHS??
+
+## making parent data for PSA ('data/DL.Rdata')
+rm(list=ls())
 
 
-## work ----
+## ================ initial data pooling ===========
+## NB to save file space, the publicly available datasets in this section have not been included in the repo:
+## the relevant variables are bundled in 'data/D.Rdata'; skip down to the corresponding load statement
+## or just use the overall output 'data/DL.Rdata'
 
 ## --- WHO data from
 ## http://www.who.int/tb/country/data/download/en/
@@ -163,9 +156,8 @@ D[,cdr04:=(n_m_0_4+n_f_0_4)/((e_inc_num_m014 + e_inc_num_f014)/2)]
 D[,cdr04ab:=(n_m_0_4+n_f_0_4)/((e_inc_num_m014 + e_inc_num_f014)/2)]
 D[!is.finite(cdr04),cdr04:=0]
 D[cdr04>1,cdr04:=1]
-## TODO introduce an extra variance term for the 1/2 split?
 D[,cdr04ab:=((1-cdr04)/cdr04)/((e_inc_num_m014_hi-e_inc_num_m014_lo)/(3.92*e_inc_num_m014))^2-1]
-D[!is.finite(cdr04ab) | cdr04ab<0, cdr04ab:=0] #TODO NB CDR sampling needs to handle 0s
+D[!is.finite(cdr04ab) | cdr04ab<0, cdr04ab:=0] #NB CDR sampling needs to handle 0s
 
 
 ## 514 CDR (split incidence evenly)
@@ -190,8 +182,9 @@ save(D,file='data/D.Rdata')
 ## =========== merging and reshaping
 
 rm(list=ls())
-load('data/U5.Rdata')                   #load HH size predictions
 load('data/D.Rdata')                    #load parent data
+load('data/U5.Rdata')                   #load HH size predictions
+load('data/O5.Rdata')                   #load HH size predictions
 load('data/LEA.Rdata')                  #load life-expectancy data
 
 ## reshape
@@ -201,6 +194,9 @@ DL <- melt(D,id.vars = c("iso3","country","g_whoregion","LAT",paste0("a",1:15),
 ## remap for consistency
 U5$acat <- plyr::mapvalues(U5$acat,from=levels(U5$acat),
                            to=c(levels(U5$acat)[1:5],'[65,Inf)'))
+
+O5$acat <- plyr::mapvalues(O5$acat,from=levels(O5$acat),
+                           to=c(levels(O5$acat)[1:5],'[65,Inf)'))
 
 
 ## test <- head(DL$variable)               #for testing functions below
@@ -228,15 +224,19 @@ DL$acat <- plyr::mapvalues(DL$acat,from=as.character(DL[,unique(acat)]),
 
 
 ## --- merge HH predictions
-names(U5)[2:3] <- c('HHu5mu','HHu5logsd')
+names(U5)[2:5] <- c('sex','acat','HHu5mu','HHu5logsd')
 U5[,sex:=factor(c('M','F')[as.numeric(as.character(sex))])]
 DL <- merge(DL,U5,by=c('iso3','acat','sex'),all.x=TRUE)
+
+names(O5)[2:5] <- c('sex','acat','HHo5mu','HHo5logsd')
+O5[,sex:=factor(c('M','F')[as.numeric(as.character(sex))])]
+DL <- merge(DL,O5,by=c('iso3','acat','sex'),all.x=TRUE)
 
 ## U5[iso3=='ZWE']
 ## DL[iso3=='ZWE']
 
 ## regional average for NAs
-wcols <- c('HHu5mu','HHu5logsd')
+wcols <- c('HHu5mu','HHu5logsd','HHo5mu','HHo5logsd')
 DL[,(wcols):=lapply(wcols,function(x){
   x <- get(x)
   x[is.na(x)] <- mean(x, na.rm = TRUE)

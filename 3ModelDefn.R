@@ -157,4 +157,4 @@ kexp$Set(check=0)
 kexp$Set(check=1,filterFun=isLeaf)
 
 print(kexp,'prevalent','check')
-
+## plotter(kexp, varz=c('name'), edgelabel = FALSE) # inspect tree by plot
