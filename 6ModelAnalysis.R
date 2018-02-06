@@ -9,6 +9,8 @@ source('3ModelDefn.R')
 source('4ModelFuns.R')
 
 
+## === making parent data frame for younger children and calculating HH contacts
+
 DL[iso3=='ABW']
 DL[iso3=='ZWE']
 
@@ -23,21 +25,16 @@ DLC
 ## NB this is value hh stuff ( acat adult, but we can aggregate these)
 DLK <- DL[,.(iso3,acat,sex,value,HHu5mu,HHu5logsd)]      #will probably need to invlude HIV stuff here
 
-
+## extend for calculating numbers mean numbers of HH contacts
 nrep <- 1e3
 DLKL <- DLK[rep(1:nrow(DLK),nrep),]
 DLKL[,repn:=rep(1:nrep,each=nrow(DLK))]
 
 ## u5 contacts found
 DLKL[,phh := rlnorm(n = nrow(DLKL), meanlog=HHu5mu, sdlog=HHu5logsd)]
-## print(DLKL[phh>1e2,],n=Inf)                            #TODO problem for rich countries!
-DLKL[phh>5,phh:=runif(sum(phh>5),max=5)]               #TODO temporary!
-
-
-DLKL[,u5hhc := value * phh]
-
-DLKL[,summary(phh)]
-DLKL[,qplot(phh)]           #
+DLKL[,u5hhc := value * phh]             #under 5 HH mean contacts
+## DLKL[,summary(phh)]                     #check
+## DLKL[,qplot(phh)]           #check
 
 ## aggregates
 chhc <- DLKL[,.(u5hhc=sum(u5hhc),notes=sum(value),phh=mean(phh)),
@@ -47,9 +44,9 @@ ghhc <- DLKL[,.(u5hhc=sum(u5hhc),notes=sum(value),phh=mean(phh)),
              by=.(repn)] #global aggregates
 
 summary(ghhc)
-ghhc[,mean(u5hhc)*1e-6]                 #around 3
-chhc[iso3=='ZAF',summary(u5hhc)]/DLK[iso3=='ZAF',sum(value)]
-
+ghhc[,mean(u5hhc)*1e-6]                 #around 3 million u5 contacts
+## sanity checks
+chhc[iso3=='ZAF',summary(u5hhc)]/DLK[iso3=='ZAF',sum(value)] #check
 chhc[iso3=='ZAF',qplot(u5hhc)]
 chhc[iso3=='AFG',qplot(u5hhc)]
 
@@ -58,10 +55,12 @@ chhc <- chhc[,.(u5hhc=mean(u5hhc),u5hhc.sd=sd(u5hhc),
 
 save(chhc,file='data/chhc.Rdata')
 
+## TODO same as above but for older children
+
 ## merge to make parent data table for PSA
 DLC <- merge(DLC,chhc,by='iso3')
 
-## build PSA dt
+## build PSA data frame
 nrep <- 1e2
 PSA <- DLC[rep(1:nrow(DLC),nrep),]
 PSA[,repn:=rep(1:nrep,each=nrow(DLC))]
@@ -99,6 +98,7 @@ PSA[intervention=='full',CDR:=1]
 
 ## ------ tree model calculations
 F <- makeTfuns(kexp,unique(kexp$fieldsAll))
+names(F)
 ## getAQ(kexp,'LE')
 summary(F$checkfun(PSA))                         #!!
 
@@ -141,3 +141,9 @@ PSARg
 
 summary(PSA)
 
+## TODO
+## u5 intervention and outputs
+## number of tracing and courses IPT
+## HIV functions
+## document assumptions esp CDR
+## o5 intervention and outputs
