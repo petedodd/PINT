@@ -1,64 +1,14 @@
 ## TODO
 ## HIV functions
-## CDR upped to reflect HHCT households
 ## TODO courses treats screens
 ## see end file TODO 
 rm(list=ls())
-load('data/DL.Rdata')
 source('3ModelDefn.R')
 source('4ModelFuns.R')
 
 
-## === making parent data frame for younger children and calculating HH contacts
-
-DL[iso3=='ABW']
-DL[iso3=='ZWE']
-
-## simplifying for u5 only
-DL[,LE:=(`[0,1)`+4*`[1,5)`)/5]
-DL[,`[0,1)`:=NULL]; DL[,`[1,5)`:=NULL]; DL[,`[5,10)`:=NULL]; DL[,`[10,15)`:=NULL]; 
-
-## country level version
-DLC <- unique(DL[,.(iso3,g_whoregion,LAT,a1,a2,a3,a4,a5,cdr04,cdr04ab,LE)])
-DLC
-
-## NB this is value hh stuff ( acat adult, but we can aggregate these)
-DLK <- DL[,.(iso3,acat,sex,value,HHu5mu,HHu5logsd)]      #will probably need to invlude HIV stuff here
-
-## extend for calculating numbers mean numbers of HH contacts
-nrep <- 1e3
-DLKL <- DLK[rep(1:nrow(DLK),nrep),]
-DLKL[,repn:=rep(1:nrep,each=nrow(DLK))]
-
-## u5 contacts found
-DLKL[,phh := rlnorm(n = nrow(DLKL), meanlog=HHu5mu, sdlog=HHu5logsd)]
-DLKL[,u5hhc := value * phh]             #under 5 HH mean contacts
-## DLKL[,summary(phh)]                     #check
-## DLKL[,qplot(phh)]           #check
-
-## aggregates
-chhc <- DLKL[,.(u5hhc=sum(u5hhc),notes=sum(value),phh=mean(phh)),
-             by=.(repn,iso3)] #country aggregates
-
-ghhc <- DLKL[,.(u5hhc=sum(u5hhc),notes=sum(value),phh=mean(phh)),
-             by=.(repn)] #global aggregates
-
-summary(ghhc)
-ghhc[,mean(u5hhc)*1e-6]                 #around 3 million u5 contacts
-## sanity checks
-chhc[iso3=='ZAF',summary(u5hhc)]/DLK[iso3=='ZAF',sum(value)] #check
-chhc[iso3=='ZAF',qplot(u5hhc)]
-chhc[iso3=='AFG',qplot(u5hhc)]
-
-chhc <- chhc[,.(u5hhc=mean(u5hhc),u5hhc.sd=sd(u5hhc),
-                u5hhc.l=mean(log(u5hhc)),u5hhc.sdl=sd(log(u5hhc))),by=iso3]
-
-save(chhc,file='data/chhc.Rdata')
-
-## TODO same as above but for older children
-
-## merge to make parent data table for PSA
-DLC <- merge(DLC,chhc,by='iso3')
+## ======= children 0-4
+load('data/DLC.Rdata')                  #parent data
 
 ## build PSA data frame
 nrep <- 1e2
@@ -134,6 +84,7 @@ PSAR <- PSA[,.(ep=sum(e.prevalent),
 ## 50:50 cop:inc and ~110K d
 
 (PSARg[1,ed] - PSARg[2,ed])             #will be a bit lower with CDR correction
+(PSARg[1,el] - PSARg[2,el])             #will be a bit lower with CDR correction
 ## TODO IPT read more
 ## TODO check NAs
 
@@ -144,6 +95,7 @@ summary(PSA)
 ## TODO
 ## u5 intervention and outputs
 ## number of tracing and courses IPT
+## o5 intervention and outputs
 ## HIV functions
 ## document assumptions esp CDR
-## o5 intervention and outputs
+## CY compare

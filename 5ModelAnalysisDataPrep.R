@@ -1,8 +1,7 @@
 ## TODO
-## other
 ## - HIV model & data
 
-## making parent data for PSA ('data/DL.Rdata')
+## making parent data for PSAs
 rm(list=ls())
 
 
@@ -248,7 +247,7 @@ DL[,(wcols):=lapply(wcols,function(x){
 LEAW <- dcast(LEA[,.(iso3,agegp,LE)],iso3~agegp,value.var='LE')
 DL <- merge(DL,LEAW,by='iso3',all.x=TRUE)
 
-## fill in NAs wit regional average
+## fill in NAs with regional average
 wcols <- names(DL)[(ncol(DL)-3):ncol(DL)]
 DL[,(wcols):=lapply(wcols,function(x){
   x <- get(x)
@@ -256,8 +255,112 @@ DL[,(wcols):=lapply(wcols,function(x){
   x
 }),by=g_whoregion]
 
-## DL[iso3=='ABW']
-## DL[iso3=='ZWE']
+DL[iso3=='ABW']
+DL[iso3=='ZWE']
 
 save(DL,file='data/DL.Rdata')
 
+
+## === making parent data frame for younger children and calculating HH contacts
+load('data/DL.Rdata')
+
+## simplifying for u5 only
+DL[,LE:=(`[0,1)`+4*`[1,5)`)/5]
+DL[,`[0,1)`:=NULL]; DL[,`[1,5)`:=NULL]; DL[,`[5,10)`:=NULL]; DL[,`[10,15)`:=NULL]; 
+
+## country level version
+DLC <- unique(DL[,.(iso3,g_whoregion,LAT,a1,a2,a3,a4,a5,cdr04,cdr04ab,LE)])
+DLC
+
+## NB this is value hh stuff ( acat adult, but we can aggregate these)
+DLK <- DL[,.(iso3,acat,sex,value,HHu5mu,HHu5logsd)]      #will probably need to invlude HIV stuff here
+
+## extend for calculating numbers mean numbers of HH contacts
+nrep <- 1e3
+DLKL <- DLK[rep(1:nrow(DLK),nrep),]
+DLKL[,repn:=rep(1:nrep,each=nrow(DLK))]
+
+## u5 contacts found
+DLKL[,phh := rlnorm(n = nrow(DLKL), meanlog=HHu5mu, sdlog=HHu5logsd)]
+DLKL[,u5hhc := value * phh]             #under 5 HH mean contacts
+## DLKL[,summary(phh)]                     #check
+## DLKL[,qplot(phh)]           #check
+
+## aggregates
+chhc <- DLKL[,.(u5hhc=sum(u5hhc),notes=sum(value),phh=mean(phh)),
+             by=.(repn,iso3)] #country aggregates
+
+ghhc <- DLKL[,.(u5hhc=sum(u5hhc),notes=sum(value),phh=mean(phh)),
+             by=.(repn)] #global aggregates
+
+summary(ghhc)
+ghhc[,mean(u5hhc)*1e-6]                 #around 3 million u5 contacts
+## sanity checks
+chhc[iso3=='ZAF',summary(u5hhc)]/DLK[iso3=='ZAF',sum(value)] #check
+chhc[iso3=='ZAF',qplot(u5hhc)]
+chhc[iso3=='AFG',qplot(u5hhc)]
+
+chhc <- chhc[,.(u5hhc=mean(u5hhc),u5hhc.sd=sd(u5hhc),
+                u5hhc.l=mean(log(u5hhc)),u5hhc.sdl=sd(log(u5hhc))),by=iso3]
+
+save(chhc,file='data/chhc.Rdata')
+
+## merge to make parent data table for PSA
+DLC <- merge(DLC,chhc,by='iso3')
+save(DLC,file='data/DLC.Rdata')
+
+## ====== same but for 5-15
+load('data/DL.Rdata')
+
+## simplifying for u5 only
+DL[,LE:=(`[5,10)`+`[10,15)`)/2]
+DL[,`[0,1)`:=NULL]; DL[,`[1,5)`:=NULL]; DL[,`[5,10)`:=NULL]; DL[,`[10,15)`:=NULL]; 
+
+## country level version
+DLO <- unique(DL[,.(iso3,g_whoregion,LAT,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15,cdr514,cdr514ab,LE)])
+DLO
+
+## NB this is value hh stuff ( acat adult, but we can aggregate these)
+DLK <- DL[,.(iso3,acat,sex,value,HHo5mu,HHo5logsd)]      #will probably need to invlude HIV stuff here
+
+## extend for calculating numbers mean numbers of HH contacts
+nrep <- 1e3
+DLKL <- DLK[rep(1:nrow(DLK),nrep),]
+DLKL[,repn:=rep(1:nrep,each=nrow(DLK))]
+
+## u5 contacts found
+DLKL[,phh := rlnorm(n = nrow(DLKL), meanlog=HHo5mu, sdlog=HHo5logsd)]
+DLKL[,o5hhc := value * phh]             #under 5 HH mean contacts
+## DLKL[,summary(phh)]                     #check
+## DLKL[,qplot(phh)]           #check
+
+## aggregates
+ohhc <- DLKL[,.(o5hhc=sum(o5hhc),notes=sum(value),phh=mean(phh)),
+             by=.(repn,iso3)] #country aggregates
+
+ghhc <- DLKL[,.(o5hhc=sum(o5hhc),notes=sum(value),phh=mean(phh)),
+             by=.(repn)] #global aggregates
+
+summary(ghhc)
+ghhc[,mean(o5hhc)*1e-6]                 #around 3 million u5 contacts
+## sanity checks
+ohhc[iso3=='ZAF',summary(o5hhc)]/DLK[iso3=='ZAF',sum(value)] #check
+ohhc[iso3=='ZAF',qplot(o5hhc)]
+ohhc[iso3=='AFG',qplot(o5hhc)]
+
+ohhc <- ohhc[,.(o5hhc=mean(o5hhc),o5hhc.sd=sd(o5hhc),
+                o5hhc.l=mean(log(o5hhc)),o5hhc.sdl=sd(log(o5hhc))),by=iso3]
+
+save(ohhc,file='data/ohhc.Rdata')
+
+
+DLO <- merge(DLO,ohhc,by='iso3')
+save(DLO,file='data/DLO.Rdata')
+
+
+## === household visits
+load('data/DL.Rdata')
+DL <- unique(DL[,.(iso3,g_whoregion,acat,sex,value)])
+HHV <- DL[,.(visits=sum(value)),by=.(iso3,g_whoregion)]
+
+save(HHV,file='data/HHV.Rdata')
