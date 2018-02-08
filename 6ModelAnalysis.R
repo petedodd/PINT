@@ -174,7 +174,6 @@ PSAA <- PSA[,.(ei=sum(e.incidence),
                el=sum(e.LE)),by=.(repn,intervention,acat)]
 
 
-## TODO
 ## == diffs
 ## global
 tmp1 <- PSAG[,.SD[intervention=='Under 5 & HIV+ve'] - .SD[intervention=='No intervention'],.SDcols=3:7,by=repn]
@@ -198,9 +197,9 @@ tmp[,intervention:='C-A']
 PSAA <- rbind(PSAA,tmp1,tmp)
 
 ## == summary
-PSAGm <- PSAG[,.(incidence=mean(ei),deaths=mean(ed),ATT=mean(et),IPT=mean(ept)),by=.(intervention)]
-PSARm <- PSAR[,.(incidence=mean(ei),deaths=mean(ed),ATT=mean(et),IPT=mean(ept)),by=.(intervention,g_whoregion)]
-PSAAm <- PSAA[,.(incidence=mean(ei),deaths=mean(ed),ATT=mean(et),IPT=mean(ept)),by=.(intervention,acat)]
+PSAGm <- PSAG[,.(incidence=mean(ei),deaths=mean(ed),ATT=mean(et),IPT=mean(ept),LYL=mean(el)*1e-3),by=.(intervention)]
+PSARm <- PSAR[,.(incidence=mean(ei),deaths=mean(ed),ATT=mean(et),IPT=mean(ept),LYL=mean(el)*1e-3),by=.(intervention,g_whoregion)]
+PSAAm <- PSAA[,.(incidence=mean(ei),deaths=mean(ed),ATT=mean(et),IPT=mean(ept),LYL=mean(el)*1e-3),by=.(intervention,acat)]
 
 ## == visits, children
 ## - visits
@@ -221,11 +220,14 @@ HCr <- HCr[,.(hhc=mean(hhc)),by=g_whoregion]
 HCa <- HCa[,.(hhc=mean(hhc)),by=acat]
 
 ## == gathering
+intl <- c("No intervention","Under 5 & HIV+ve","Under 5 & HIV+ve & LTBI+","B-A","C-A")
+varlv <- c('households','contacts','IPT','ATT','incidence','deaths','LYL')
+nint <- length(intl)
+
 ## global
 RTg <- melt(PSAGm,id='intervention')
-nint <- length(unique(RTg$intervention))
-RTx <- data.table(intervention=rep(RTg[,unique(intervention)],2),
-                        variable=rep(c('households','contacts'),each=nint),
+RTx <- data.table(intervention=rep(intl,2),
+                  variable=rep(c('households','contacts'),each=nint),
                   value=rep(0,2*nint))  #visits & contacts
 RTx[grepl('5',intervention) & variable=='households',value:=HHV[,sum(visits)]]
 RTx[grepl('5',intervention) & variable=='contacts',value:=HCg[,hhc]]
@@ -233,9 +235,10 @@ RTg <- rbind(RTg,RTx)
 
 ## regional
 RTr <- melt(PSARm,id=c('intervention','g_whoregion'))
-RTx <- data.table(intervention=rep(RTg[,unique(intervention)],2*6),
+
+RTx <- data.table(intervention=rep(intl,2*6),
                   g_whoregion=rep(RTr[,unique(g_whoregion)],each=nint*2),
-                        variable=rep(c('households','contacts'),each=nint),
+                  variable=rep(c('households','contacts'),each=nint),
                   value=rep(0,2*nint*6))  #visits & contacts
 for(reg in RTx[,unique(g_whoregion)]) RTx[grepl('5',intervention) & variable=='households' & g_whoregion==reg,value:=HHVR[g_whoregion==reg,sum(visits)]]
 for(reg in RTx[,unique(g_whoregion)]) RTx[grepl('5',intervention) & variable=='contacts' & g_whoregion==reg,value:=HCr[g_whoregion==reg,hhc]]
@@ -254,13 +257,11 @@ RTa <- rbind(RTa,RTx)
 RTa <- dcast(RTa,intervention+variable ~ acat,value.var = 'value')
 
 ## merge
-intl <- c("No intervention","Under 5 & HIV+ve","Under 5 & HIV+ve & LTBI+","B-A","C-A")
-varlv <- c('households','contacts','IPT','ATT','incidence','deaths')# TODO ,'LYL')
-
 RTg$intervention <- factor(RTg$intervention,levels=intl,ordered=TRUE); RTg$variable <- factor(RTg$variable,levels=varlv,ordered=TRUE)
 RTr$intervention <- factor(RTr$intervention,levels=intl,ordered=TRUE); RTr$variable <- factor(RTr$variable,levels=varlv,ordered=TRUE)
 RTa$intervention <- factor(RTa$intervention,levels=intl,ordered=TRUE); RTa$variable <- factor(RTa$variable,levels=varlv,ordered=TRUE)
 RTg <- RTg[order(intervention,variable),]; RTr <- RTr[order(intervention,variable),]; RTa <- RTa[order(intervention,variable),]
+
 RT <- cbind(RTg,RTr[,-c(1:2),with=FALSE],RTa[,-c(1:2),with=FALSE])
 
 ## == formatting & output
