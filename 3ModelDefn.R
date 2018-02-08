@@ -156,5 +156,11 @@ kexp$Set(prevalent=0,filterFun=function(x)is.na(x$prevalent))
 kexp$Set(check=0)
 kexp$Set(check=1,filterFun=isLeaf)
 
+## PT courses
+kexp$Set(IPT=0)
+kexp$Set(IPT=1,filterFun=function(x) grepl("gets PT",x$name) )
+## print(kexp,'IPT')
+## plotter(kexp,varz = c('name','IPT'))q
+
 print(kexp,'prevalent','check')
 ## plotter(kexp, varz=c('name'), edgelabel = FALSE) # inspect tree by plot

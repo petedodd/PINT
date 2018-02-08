@@ -113,6 +113,7 @@ PSA$e.incidence <- F$incidencefun(PSA)*PSA$hhc
 PSA$e.deaths <- F$deathfun(PSA)*PSA$hhc
 PSA$e.LE <- F$LEfun(PSA)*PSA$hhc
 PSA$e.txs <- F$treatmentsfun(PSA)*PSA$hhc
+PSA$e.IPT <- F$IPTfun(PSA)*PSA$hhc
 
 ## print(kexp,'incidence','LE')
 ## print(kexp,'death','treatments')
@@ -129,6 +130,7 @@ PSAR <- PSA[,.(ep=sum(e.prevalent),
                ei=sum(e.incidence),
                ed=sum(e.deaths),
                et=sum(e.txs),
+               ept=sum(e.IPT),
                el=sum(e.LE)),by=.(repn,intervention)]
 
 
@@ -137,8 +139,8 @@ pp <- function(x,sf=3,ns=0) format(signif(round(x),sf), nsmall=ns, big.mark=",")
 (PSARg <- PSAR[,.(ep=pp(mean(ep)),ei=pp(mean(ei)),
                   ed=pp(mean(ed)),ed.sd=pp(sd(ed)),
                   et=pp(mean(et)),et.sd=pp(sd(et)),
+                  ept=pp(mean(ept)),ept.sd=pp(sd(ept)),
                   el=pp(mean(el)*1e-6)),by=intervention])
-## 50:50 cop:inc and ~110K d
 
 (PSARg[1,ed] - PSARg[2,ed])             #will be a bit lower with CDR correction
 (PSARg[1,el] - PSARg[2,el])             #will be a bit lower with CDR correction
