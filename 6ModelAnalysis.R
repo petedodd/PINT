@@ -24,8 +24,8 @@ PSA[,ltbi.prev:=ltbi.prev(azu5,coprev)] #LTBI prevalence
 PSA[,pprogn:=avu5progprob(a1,a2,a3,a4,a5,LAT)] #progression probability (averaged 0-4)
 PSA[,rrtst:=RRtst(azu5)]                #RR for incidence if TST+ve
 PSA[,inc:=ltbi.prev * pprogn]           #TB incidence, total
-PSA[,progn.LP.PTn:=inc]                 #TB incidence in LTBI +ve PT-ve
-PSA[,progn.LN.PTn:=0]                   #TB incidence in LTBI -ve PT-ve
+PSA[,progn.LP.PTn:=inc*rrtst/(1+rrtst)] #TB incidence in LTBI +ve PT-ve
+PSA[,progn.LN.PTn:=inc*1/(1+rrtst)]     #TB incidence in LTBI -ve PT-ve
 PSA[,progn.LP.PTp:=progn.LP.PTn*IPTrr]  #TB incidence in LTBI +ve PT+ve
 PSA[,progn.LN.PTp:=progn.LN.PTn*IPTrr]  #TB incidence in LTBI -ve PT+ve
 PSA[,PTcov.N:=0]                        #coverage of PT in LTBI -ve
@@ -37,9 +37,9 @@ PSA <- PSA[rep(1:npsa,3),]              #replicates by intervention
 PSA[,intervention:=c(rep('No intervention',npsa),
                      rep('Under 5 & HIV+ve',npsa),
                      rep('Under 5 & HIV+ve & LTBI+',npsa))]
-PSA[intervention!='No intervention',PTcov.N:=1]
-PSA[intervention!='No intervention',PTcov.P:=1]
-PSA[intervention!='No intervention',CDR:=1]
+PSA[intervention!='No intervention',CDR:=1] #screening
+PSA[intervention!='No intervention',PTcov.N:=1] #IPT
+PSA[intervention!='No intervention',PTcov.P:=1] #IPT
 PSA[,acat:="[0,5)"]                     #age group
 
 ## ======= children 5-14
@@ -60,9 +60,8 @@ PSO[,pprogn:=avo5progprob(a6,a7,a8,a9,a10,
                           LAT)] #progression probability (averaged 0-4)
 PSO[,rrtst:=RRtst(azu5)]                #RR for incidence if TST+ve
 PSO[,inc:=ltbi.prev * pprogn]           #TB incidence, total
-PSO[,progn.LP.PTn:=inc]                 #TB incidence in LTBI +ve PT-ve
-
-PSO[,progn.LN.PTn:=0]                   #TB incidence in LTBI -ve PT-ve
+PSO[,progn.LP.PTn:=inc*rrtst/(1+rrtst)] #TB incidence in LTBI +ve PT-ve
+PSO[,progn.LN.PTn:=inc*1/(1+rrtst)]     #TB incidence in LTBI -ve PT-ve
 PSO[,progn.LP.PTp:=progn.LP.PTn*IPTrr]  #TB incidence in LTBI +ve PT+ve
 PSO[,progn.LN.PTp:=progn.LN.PTn*IPTrr]  #TB incidence in LTBI -ve PT+ve
 PSO[,PTcov.N:=0]                        #coverage of PT in LTBI -ve
@@ -73,11 +72,11 @@ PSO <- PSO[rep(1:npsa,3),]              #replicates by intervention
 PSO[,intervention:=c(rep('No intervention',npsa),
                      rep('Under 5 & HIV+ve',npsa),
                      rep('Under 5 & HIV+ve & LTBI+',npsa))]
-PSO[intervention!='No intervention',PTcov.N:=1]
-PSO[intervention!='No intervention',PTcov.P:=1]
-PSO[intervention!='No intervention',CDR:=1]
+PSO[intervention!='No intervention',CDR:=1] #screening
+PSO[intervention=='Under 5 & HIV+ve & LTBI+',PTcov.P:=1] #PT for TST+
 
-## other changes TODO
+
+## other changes once HIV included TODO
 
 PSO[,acat:="[5,15)"]                    #age group
 
@@ -135,12 +134,15 @@ PSAR <- PSA[,.(ep=sum(e.prevalent),
 
 
 pp <- function(x,sf=3,ns=0) format(signif(round(x),sf), nsmall=ns, big.mark=",")
-
+ 
 (PSARg <- PSAR[,.(ep=pp(mean(ep)),ei=pp(mean(ei)),
                   ed=pp(mean(ed)),ed.sd=pp(sd(ed)),
                   et=pp(mean(et)),et.sd=pp(sd(et)),
                   ept=pp(mean(ept)),ept.sd=pp(sd(ept)),
                   el=pp(mean(el)*1e-6)),by=intervention])
+
+
+
 
 (PSARg[1,ed] - PSARg[2,ed])             #will be a bit lower with CDR correction
 (PSARg[1,el] - PSARg[2,el])             #will be a bit lower with CDR correction
@@ -150,6 +152,153 @@ pp <- function(x,sf=3,ns=0) format(signif(round(x),sf), nsmall=ns, big.mark=",")
 PSARg
 
 summary(PSA)
+
+## ==== full results table w/o uncertainty for now ===
+## global
+PSAG <- PSA[,.(ei=sum(e.incidence),
+               ed=sum(e.deaths),
+               et=sum(e.txs),
+               ept=sum(e.IPT),
+               el=sum(e.LE)),by=.(repn,intervention)]
+## regional
+PSAR <- PSA[,.(ei=sum(e.incidence),
+               ed=sum(e.deaths),
+               et=sum(e.txs),
+               ept=sum(e.IPT),
+               el=sum(e.LE)),by=.(repn,intervention,g_whoregion)]
+## age
+PSAA <- PSA[,.(ei=sum(e.incidence),
+               ed=sum(e.deaths),
+               et=sum(e.txs),
+               ept=sum(e.IPT),
+               el=sum(e.LE)),by=.(repn,intervention,acat)]
+
+
+## TODO
+## == diffs
+## global
+tmp1 <- PSAG[,.SD[intervention=='Under 5 & HIV+ve'] - .SD[intervention=='No intervention'],.SDcols=3:7,by=repn]
+tmp1[,intervention:='B-A']
+tmp <- PSAG[,.SD[intervention=='Under 5 & HIV+ve & LTBI+'] - .SD[intervention=='No intervention'],.SDcols=3:7,by=repn]
+tmp[,intervention:='C-A']
+PSAG <- rbind(PSAG,tmp1,tmp)
+
+## regional
+tmp1 <- PSAR[,.SD[intervention=='Under 5 & HIV+ve'] - .SD[intervention=='No intervention'],.SDcols=4:8,by=.(repn,g_whoregion)]
+tmp1[,intervention:='B-A']
+tmp <- PSAR[,.SD[intervention=='Under 5 & HIV+ve & LTBI+'] - .SD[intervention=='No intervention'],.SDcols=4:8,by=.(repn,g_whoregion)]
+tmp[,intervention:='C-A']
+PSAR <- rbind(PSAR,tmp1,tmp)
+
+## age
+tmp1 <- PSAA[,.SD[intervention=='Under 5 & HIV+ve'] - .SD[intervention=='No intervention'],.SDcols=4:8,by=.(repn,acat)]
+tmp1[,intervention:='B-A']
+tmp <- PSAA[,.SD[intervention=='Under 5 & HIV+ve & LTBI+'] - .SD[intervention=='No intervention'],.SDcols=4:8,by=.(repn,acat)]
+tmp[,intervention:='C-A']
+PSAA <- rbind(PSAA,tmp1,tmp)
+
+## == summary
+PSAGm <- PSAG[,.(incidence=mean(ei),deaths=mean(ed),ATT=mean(et),IPT=mean(ept)),by=.(intervention)]
+PSARm <- PSAR[,.(incidence=mean(ei),deaths=mean(ed),ATT=mean(et),IPT=mean(ept)),by=.(intervention,g_whoregion)]
+PSAAm <- PSAA[,.(incidence=mean(ei),deaths=mean(ed),ATT=mean(et),IPT=mean(ept)),by=.(intervention,acat)]
+
+## == visits, children
+## - visits
+load('data/HHV.Rdata')
+HHV[,sum(visits)]
+HHVR <- HHV[,.(visits=sum(visits)),by=g_whoregion]
+## PSAGm[,visits:=HHV[,sum(visits)]];
+## PSAGm[intervention %in% c('No intervention','B-A','C-A'),visits:=0]
+## PSARm <- merge(PSARm,HHV[,.(visits=sum(visits)),by=g_whoregion],by='g_whoregion',all.x = TRUE)
+## PSARm[intervention %in% c('No intervention','B-A','C-A'),visits:=0]
+
+## - children TODO uncertainty
+HCg <- PSA[,.(hhc=sum(hhc)),by=repn]
+HCr <- PSA[,.(hhc=sum(hhc)),by=.(repn,g_whoregion)]
+HCa <- PSA[,.(hhc=sum(hhc)),by=.(repn,acat)]
+HCg <- HCg[,.(hhc=mean(hhc))]
+HCr <- HCr[,.(hhc=mean(hhc)),by=g_whoregion]
+HCa <- HCa[,.(hhc=mean(hhc)),by=acat]
+
+## == gathering
+## global
+RTg <- melt(PSAGm,id='intervention')
+nint <- length(unique(RTg$intervention))
+RTx <- data.table(intervention=rep(RTg[,unique(intervention)],2),
+                        variable=rep(c('households','contacts'),each=nint),
+                  value=rep(0,2*nint))  #visits & contacts
+RTx[grepl('5',intervention) & variable=='households',value:=HHV[,sum(visits)]]
+RTx[grepl('5',intervention) & variable=='contacts',value:=HCg[,hhc]]
+RTg <- rbind(RTg,RTx)
+
+## regional
+RTr <- melt(PSARm,id=c('intervention','g_whoregion'))
+RTx <- data.table(intervention=rep(RTg[,unique(intervention)],2*6),
+                  g_whoregion=rep(RTr[,unique(g_whoregion)],each=nint*2),
+                        variable=rep(c('households','contacts'),each=nint),
+                  value=rep(0,2*nint*6))  #visits & contacts
+for(reg in RTx[,unique(g_whoregion)]) RTx[grepl('5',intervention) & variable=='households' & g_whoregion==reg,value:=HHVR[g_whoregion==reg,sum(visits)]]
+for(reg in RTx[,unique(g_whoregion)]) RTx[grepl('5',intervention) & variable=='contacts' & g_whoregion==reg,value:=HCr[g_whoregion==reg,hhc]]
+RTr <- rbind(RTr,RTx)
+RTr <- dcast(RTr,intervention+variable ~ g_whoregion,value.var = 'value')
+
+## age
+RTa <- melt(PSAAm,id=c('intervention','acat'))
+RTx <- data.table(intervention=rep(RTg[,unique(intervention)],2*2),
+                  variable=rep(c('households','contacts'),each=nint),
+                  acat=rep(RTa[,unique(acat)],each=nint*2),
+                  value=rep(0,4*nint))  #visits & contacts
+for(reg in RTx[,unique(acat)]) RTx[grepl('5',intervention) & variable=='households' & acat==reg,value:=HHV[,sum(visits)]]
+for(reg in RTx[,unique(acat)]) RTx[grepl('5',intervention) & variable=='contacts' & acat==reg,value:=HCa[acat==reg,hhc]]
+RTa <- rbind(RTa,RTx)
+RTa <- dcast(RTa,intervention+variable ~ acat,value.var = 'value')
+
+## merge
+intl <- c("No intervention","Under 5 & HIV+ve","Under 5 & HIV+ve & LTBI+","B-A","C-A")
+varlv <- c('households','contacts','IPT','ATT','incidence','deaths')# TODO ,'LYL')
+
+RTg$intervention <- factor(RTg$intervention,levels=intl,ordered=TRUE); RTg$variable <- factor(RTg$variable,levels=varlv,ordered=TRUE)
+RTr$intervention <- factor(RTr$intervention,levels=intl,ordered=TRUE); RTr$variable <- factor(RTr$variable,levels=varlv,ordered=TRUE)
+RTa$intervention <- factor(RTa$intervention,levels=intl,ordered=TRUE); RTa$variable <- factor(RTa$variable,levels=varlv,ordered=TRUE)
+RTg <- RTg[order(intervention,variable),]; RTr <- RTr[order(intervention,variable),]; RTa <- RTa[order(intervention,variable),]
+RT <- cbind(RTg,RTr[,-c(1:2),with=FALSE],RTa[,-c(1:2),with=FALSE])
+
+## == formatting & output
+library(officer)
+library(magrittr)
+library(flextable)
+
+fwrite(RT,file='tables/RT.csv')
+
+tmp <- RT[,lapply(.SD,pp),.SDcols=3:11]
+tmp <- cbind(RT[,1:2,with=FALSE],tmp)
+
+myft <- regulartable(tmp)
+myft <- merge_v(myft, j = c("intervention", "variable") )
+myft
+
+read_docx() %>%
+  body_add_par(value = "Global, regional, and age outputs", style = "heading 1") %>%
+  ## body_add_table(value = myft, style = "table_template" ) %>%
+  body_add_flextable(value = myft) %>%
+  body_end_section(continuous = FALSE, landscape = TRUE) %>% 
+  print(target = "tables/RT.docx") %>% 
+    invisible()
+
+## myft <- autofit(myft)
+
+## ## writing out
+## read_docx() %>%
+##   body_add_par(value = "Global output table", style = "heading 1") %>%
+##   body_add_table(value = PSARg, style = "table_template" ) %>%
+##   print(target = "tables/globaloutput.docx") %>% 
+##     invisible()
+
+## write.csv(PSARg,file='tables/globaloutput.csv')
+
+
+
+
 
 ## TODO
 ## u5 intervention and outputs
