@@ -1,7 +1,8 @@
 ## TODO
 ## remove most sanity checks so can be sourced
 ## think LHS
-source("3ModelDefn.R")
+## source("3ModelDefn.R")
+
 ## read in data
 PZ <- parse.parmtable(data = read.csv('data/PTBHHCT.csv')) #no test
 ## PZ <- parse.parmtable(data = read.csv('data/PTBHHCT.csv'), #test!
@@ -12,10 +13,10 @@ names(PZ)
 
 ## =========== function definitions ===============
 
-## what function are needed?
-clx <- showParmz(kexp)$calcs
-clx                                     #avoid the 1- or the 1
-clx[!grepl('1',clx)]
+## ## what function are needed?
+## clx <- showParmz(kexp)$calcs
+## clx                                     #avoid the 1- or the 1
+## clx[!grepl('1',clx)]
 
 ## testing
 
@@ -105,9 +106,7 @@ progprob <- function(a,bcgcov,lat){
   dtb <- pp*pd*(1-bcgcov*(1-dBCG)*f)           #non pulmonary
   ptb + dtb                             #all TB
 }
-## TODO
-
-summary(progprob(runif(1e3,0,1),0.99,90))
+## summary(progprob(runif(1e3,0,1),0.99,90))
 
 ## average for u5s
 avu5progprob <- function(a1,a2,a3,a4,a5,lat){
@@ -117,17 +116,31 @@ avu5progprob <- function(a1,a2,a3,a4,a5,lat){
    progprob(zs+4.5,a5*1e-2,lat))/5
 }
 
+## average for o5s
+avo5progprob <- function(a6,a7,a8,a9,a10,
+                         a11,a12,a13,a14,a15,
+                         lat){
+  zs <- rep(5,length(a6))
+  (progprob(zs+0.5,a6*1e-2,lat)+progprob(zs+1.5,a7*1e-2,lat)+
+   progprob(zs+2.5,a8*1e-2,lat)+progprob(zs+3.5,a9*1e-2,lat)+
+   progprob(zs+4.5,a10*1e-2,lat)+progprob(zs+5.5,a11*1e-2,lat)+
+   progprob(zs+6.5,a12*1e-2,lat)+progprob(zs+7.5,a13*1e-2,lat)+
+   progprob(zs+8.5,a14*1e-2,lat)+progprob(zs+9.5,a15*1e-2,lat)
+   )/10
+}
+
 
 ## === disaggregating by TST status? may not be used??
 RRtst <- function(a){
   PZ$RRtst10$r(length(a))
 }
+## RRtst(rep(1,10))
 
 ## === IPT efficacy
 IPTrr <- function(a){
   PZ$iptRR$r(length(a))
 }
-IPTrr(1:10)
+## IPTrr(1:10)
 
 
 

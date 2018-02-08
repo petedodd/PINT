@@ -50,7 +50,7 @@ noltbiPTnN <- noltbiPTn$AddChild('no TB disease <1y')
 
 ## ltbiPTyN$LE <- ltbiPTnN$LE <- noltbiPTyN$LE <-  noltbiPTnN <- 'LE'
 
-print(noltbi,'p','LE')
+## print(noltbi,'p','LE')
 
 ## parameters/functions here
 atb$p <- 'coprev'                    #prevalence
@@ -70,7 +70,7 @@ noltbiPTyN$p <- '1-progn.LN.PTp'
 noltbiPTnT$p <- 'progn.LN.PTn'
 noltbiPTnN$p <- '1-progn.LN.PTn'
 
-print(kexp,'p')
+## print(kexp,'p')
 
 ## ===== disease outcomes
 outcomes <- Node$new('TB disease outcomes')
@@ -83,14 +83,14 @@ octxNs <- octxN$AddChild('survives')
 
 ## --- parameters here
 outcomes$p <- 1;  #needed as linking on to others
-octxY$p <- 'CDR'; 
+octxY$p <- 'CDR';
 octxN$p <- '1-CDR';
 octxYd$p <- 'CFRtxY';
 octxNd$p <- 'CFRtxN';
 octxYs$p <- '1-CFRtxY';
 octxNs$p <- '1-CFRtxN';
 
-print(outcomes,'p')
+## print(outcomes,'p')
 
 ## deaths
 outcomes$Set(death=0)
