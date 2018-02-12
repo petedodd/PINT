@@ -96,16 +96,9 @@ PSA <- rbind(PSA,PSO)
 rm(PSO)
 PSA
 
-## ## checking
-## PSA[acat==unique(acat)[2],summary(ltbi.prev)] #OK
-## PSA[acat==unique(acat)[1],summary(pprogn)] #OK
-## PSA[acat==unique(acat)[1],summary(inc)] #OK
-## PSA[acat==unique(acat)[1],summary(coprev)] #OK
-
 ## ==========  HIV/ART
 load('data/DL.Rdata')
 unique(DL[,.(iso3,hivprop,artprop)])
-
 
 ## ========================================
 ## ------ tree model calculations
@@ -114,14 +107,7 @@ names(F)
 ## getAQ(kexp,'LE')
 summary(F$checkfun(PSA))                         #check
 
-## ## checking
-## summary(F$prevalentfun(PSA))
-## summary(F$incidencefun(PSA))
-## summary(F$deathfun(PSA))
-## summary(F$LEfun(PSA))
-
 ## TODO include hhc variance
-## separate hhc: *PSA$hhc
 
 PSA$e.prevalent <- F$prevalentfun(PSA)
 PSA$e.incidence <- F$incidencefun(PSA)
@@ -132,29 +118,19 @@ PSA$e.IPT <- F$IPTfun(PSA)
 PSA$e.LTBI <- F$LTBIfun(PSA)
 PSA$e.ATTprev <- F$ATTprevfun(PSA)
 
-## ## checking
-## PSA[acat==unique(acat)[1],summary(e.LTBI)] #OK
-## PSA[acat==unique(acat)[1],summary(e.prevalent)] #OK
-## PSA[acat==unique(acat)[1] & intervention==unique(intervention)[2],summary(e.IPT)] # OK: minus prevalence!
-## PSA[acat==unique(acat)[1] & intervention==unique(intervention)[1],summary(e.incidence)]
-## PSA[acat==unique(acat)[1] & intervention==unique(intervention)[1],summary(inc)] #differet due to coprev not being included in above
-
 ## multiply by number of children
 PSA[,ehhc:=hhc]                         #TODO change to stochastic
 ests <- grep('e\\.',names(PSA),value=TRUE)
 nest <- length(ests)
 PSA[,c(ests):=lapply(.SD,function(x) x*ehhc),.SDcols=ests] # needing to be: x HHC
-PSA[,e.hhc:=hhc]                         #join into things dealt with generically
-ests <- grep('e\\.',names(PSA),value=TRUE)
+## add this and visits to ests list to deal with generically
+PSA[,e.hhc:=hhc]          #HH contacts join into things dealt with generically
+load('data/HHV.Rdata')    #visit (notification) data
+PSA <- merge(PSA,HHV[,.(iso3,e.households=visits)],all.x = TRUE) #merge visits in
+PSA[acat==unique(acat)[1],e.households:=0]                       #avoid double counting
+PSA[!grepl('5',intervention),e.households:=0]                    #no visits
+ests <- grep('e\\.',names(PSA),value=TRUE)                       #regrab things to est
 nest <- length(ests)
-
-## print(kexp,'incidence','LE')
-## print(kexp,'death','treatments')
-## print(kexp,'prevalent','LTBI')
-
-## plotter(kexp, varz=c('name','LE'), edgelabel = TRUE)
-## plotter(kexp, varz=c('name','incidence'), edgelabel = TRUE)
-## print(kexp,'incidence')
 
 
 ## ## TODO IPT read more
@@ -194,50 +170,19 @@ PSAAm <- PSAA[,lapply(.SD,mean),by=.(intervention,acat),.SDcols=ests]
 
 ## TODO uncertainty measures here
 
-## == visits, children
-## - visits
-load('data/HHV.Rdata')
-HHV[,sum(visits)]
-HHVR <- HHV[,.(visits=sum(visits)),by=g_whoregion]
-## PSAGm[,visits:=HHV[,sum(visits)]];
-## PSAGm[intervention %in% c('No intervention','B-A','C-A'),visits:=0]
-## PSARm <- merge(PSARm,HHV[,.(visits=sum(visits)),by=g_whoregion],by='g_whoregion',all.x = TRUE)
-## PSARm[intervention %in% c('No intervention','B-A','C-A'),visits:=0]
-
-## ## - children TODO uncertainty
-
 ## == gathering
 intl <- c("No intervention","Under 5 & HIV+ve","Under 5 & HIV+ve & LTBI+","B-A","C-A")
-## varlv <- c('households','contacts','coprevalence','ATT','IPT','incidence','deaths','kLY')
-varlv <- c('households',ests)
+varlv <- ests[c(10,9,7,1,8,5,6,2,3,4)]  #reorder
 nint <- length(intl)
+hhrpl <- PSA[repn==1 & acat=="[5,15)" & intervention==unique(intervention)[2],sum(e.households)] #the non zero value
 
 ## global
 RTg <- melt(PSAGm,id='intervention')
-RTx <- data.table(intervention=rep(intl,1),
-                  variable=rep(c('households'),each=nint),
-                  value=rep(0,1*nint))  #visits added
-RTx[grepl('5|-A',intervention) & variable=='households',value:=HHV[,sum(visits)]]
-RTg <- rbind(RTg,RTx)
-
 ## regional
 RTr <- melt(PSARm,id=c('intervention','g_whoregion'))
-RTx <- data.table(intervention=rep(intl,1*6),
-                  g_whoregion=rep(RTr[,unique(g_whoregion)],each=nint*1),
-                  variable=rep(c('households'),each=nint),
-                  value=rep(0,1*nint*6))  #visits & contacts
-for(reg in RTx[,unique(g_whoregion)]) RTx[grepl('5|-A',intervention) & variable=='households' & g_whoregion==reg,value:=HHVR[g_whoregion==reg,sum(visits)]]
-RTr <- rbind(RTr,RTx)
 RTr <- dcast(RTr,intervention+variable ~ g_whoregion,value.var = 'value')
-
 ## age
 RTa <- melt(PSAAm,id=c('intervention','acat'))
-RTx <- data.table(intervention=rep(RTg[,unique(intervention)],1*2),
-                  variable=rep(c('households'),each=nint),
-                  acat=rep(RTa[,unique(acat)],each=nint*1),
-                  value=rep(0,2*nint))  #visits 
-for(reg in RTx[,unique(acat)]) RTx[grepl('5|-A',intervention) & variable=='households' & acat==reg,value:=HHV[,sum(visits)]]
-RTa <- rbind(RTa,RTx)
 RTa <- dcast(RTa,intervention+variable ~ acat,value.var = 'value')
 
 ## merge
@@ -248,6 +193,11 @@ RTg <- RTg[order(intervention,variable),]; RTr <- RTr[order(intervention,variabl
 names(RTg)[3] <- 'Global'
 RT <- cbind(RTg,RTr[,-c(1:2),with=FALSE],RTa[,-c(1:2),with=FALSE])
 
+## intervention-related values for hhc & hh visits
+RT[!grepl('5|-A',intervention) & variable=='e.hhc',(3:ncol(RT)):=0] #only for B & C
+RT[grepl('5|-A',intervention) & variable=='e.households',(3:ncol(RT)):=hhrpl]
+RT[!grepl('5|-A',intervention) & variable=='e.households',(3:ncol(RT)):=0]
+
 ## ## NNx TODO redo
 ## x <- RT[intervention=='B-A',Global]
 ## (ba <- c(hhn=-x[1]/x[6],hcn=-x[2]/x[6],ptn=-x[3]/x[6],txn=-x[4]/x[6]))
@@ -257,8 +207,9 @@ RT <- cbind(RTg,RTr[,-c(1:2),with=FALSE],RTa[,-c(1:2),with=FALSE])
 
 ## == formatting & output
 ## formats
-tmp <- RT[,lapply(.SD,pp),.SDcols=3:ncol(RT)]
-tmp <- cbind(RT[,1:2,with=FALSE],tmp)
+whoz <- !RT$variable %in% c('e.ATTprev')
+tmp <- RT[whoz,lapply(.SD,pp),.SDcols=3:ncol(RT)]
+tmp <- cbind(RT[whoz,1:2,with=FALSE],tmp)
 intz <- as.character(tmp$intervention)
 uintz <- unique(intz)
 intz[intz==uintz[1]] <- paste0('A: ',intz[intz==uintz[1]])
