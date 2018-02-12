@@ -204,50 +204,39 @@ HHVR <- HHV[,.(visits=sum(visits)),by=g_whoregion]
 ## PSARm <- merge(PSARm,HHV[,.(visits=sum(visits)),by=g_whoregion],by='g_whoregion',all.x = TRUE)
 ## PSARm[intervention %in% c('No intervention','B-A','C-A'),visits:=0]
 
-## - children TODO uncertainty
-nowt <- unique(PSA$intervention)[1]
-HCg <- PSA[intervention==nowt,.(hhc=sum(ehhc)),by=repn]
-HCr <- PSA[intervention==nowt,.(hhc=sum(ehhc)),by=.(repn,g_whoregion)]
-HCa <- PSA[intervention==nowt,.(hhc=sum(ehhc)),by=.(repn,acat)]
-HCg <- HCg[,.(hhc=mean(hhc))]
-HCr <- HCr[,.(hhc=mean(hhc)),by=g_whoregion]
-HCa <- HCa[,.(hhc=mean(hhc)),by=acat]
+## ## - children TODO uncertainty
 
 ## == gathering
 intl <- c("No intervention","Under 5 & HIV+ve","Under 5 & HIV+ve & LTBI+","B-A","C-A")
 ## varlv <- c('households','contacts','coprevalence','ATT','IPT','incidence','deaths','kLY')
-## varlv <- c('households','contacts',ests[c(1,5,6,2,3,4)]) #ordered
-varlv <- c('households','contacts',ests)
+varlv <- c('households',ests)
 nint <- length(intl)
 
 ## global
 RTg <- melt(PSAGm,id='intervention')
-RTx <- data.table(intervention=rep(intl,2),
-                  variable=rep(c('households','contacts'),each=nint),
-                  value=rep(0,2*nint))  #visits & contacts added
+RTx <- data.table(intervention=rep(intl,1),
+                  variable=rep(c('households'),each=nint),
+                  value=rep(0,1*nint))  #visits added
 RTx[grepl('5|-A',intervention) & variable=='households',value:=HHV[,sum(visits)]]
-RTx[grepl('5|-A',intervention) & variable=='contacts',value:=HCg[,hhc]]
 RTg <- rbind(RTg,RTx)
 
 ## regional
 RTr <- melt(PSARm,id=c('intervention','g_whoregion'))
-RTx <- data.table(intervention=rep(intl,2*6),
-                  g_whoregion=rep(RTr[,unique(g_whoregion)],each=nint*2),
-                  variable=rep(c('households','contacts'),each=nint),
-                  value=rep(0,2*nint*6))  #visits & contacts
+RTx <- data.table(intervention=rep(intl,1*6),
+                  g_whoregion=rep(RTr[,unique(g_whoregion)],each=nint*1),
+                  variable=rep(c('households'),each=nint),
+                  value=rep(0,1*nint*6))  #visits & contacts
 for(reg in RTx[,unique(g_whoregion)]) RTx[grepl('5|-A',intervention) & variable=='households' & g_whoregion==reg,value:=HHVR[g_whoregion==reg,sum(visits)]]
-for(reg in RTx[,unique(g_whoregion)]) RTx[grepl('5|-A',intervention) & variable=='contacts' & g_whoregion==reg,value:=HCr[g_whoregion==reg,hhc]]
 RTr <- rbind(RTr,RTx)
 RTr <- dcast(RTr,intervention+variable ~ g_whoregion,value.var = 'value')
 
 ## age
 RTa <- melt(PSAAm,id=c('intervention','acat'))
-RTx <- data.table(intervention=rep(RTg[,unique(intervention)],2*2),
-                  variable=rep(c('households','contacts'),each=nint),
-                  acat=rep(RTa[,unique(acat)],each=nint*2),
-                  value=rep(0,4*nint))  #visits & contacts
+RTx <- data.table(intervention=rep(RTg[,unique(intervention)],1*2),
+                  variable=rep(c('households'),each=nint),
+                  acat=rep(RTa[,unique(acat)],each=nint*1),
+                  value=rep(0,2*nint))  #visits 
 for(reg in RTx[,unique(acat)]) RTx[grepl('5|-A',intervention) & variable=='households' & acat==reg,value:=HHV[,sum(visits)]]
-for(reg in RTx[,unique(acat)]) RTx[grepl('5|-A',intervention) & variable=='contacts' & acat==reg,value:=HCa[acat==reg,hhc]]
 RTa <- rbind(RTa,RTx)
 RTa <- dcast(RTa,intervention+variable ~ acat,value.var = 'value')
 
