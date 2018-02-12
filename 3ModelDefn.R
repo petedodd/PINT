@@ -137,7 +137,7 @@ kexp$`Prevalent TB disease`$`TB disease outcomes`$incidence <- 0 #coprev doesn't
 kexp$Set(LE=0,filterFun=function(x)is.null(x$LE))
 kexp$Set(LE=0,filterFun=function(x)is.na(x$LE))
 kexp$Set(LE='LE',filterFun=function(x) x$name=='no TB disease <1y' & x$isLeaf)
-
+## plotter(kexp,varz = c('name','incidence'))
 print(kexp,'incidence','LE')
 
 ## fill in death
@@ -160,7 +160,17 @@ kexp$Set(check=1,filterFun=isLeaf)
 kexp$Set(IPT=0)
 kexp$Set(IPT=1,filterFun=function(x) grepl("gets PT",x$name) )
 ## print(kexp,'IPT')
-## plotter(kexp,varz = c('name','IPT'))q
+## plotter(kexp,varz = c('name','IPT'))
 
 print(kexp,'prevalent','check')
 ## plotter(kexp, varz=c('name'), edgelabel = FALSE) # inspect tree by plot
+
+## LTBI
+kexp$Set(LTBI=0)
+kexp$Set(LTBI=1,filterFun=function(x) grepl("TST+",x$name) )
+## print(kexp,'LTBI')
+
+## ATTprev (to distinguish from treatments from detected incidence)
+kexp$Set(ATTprev=0)
+kexp$`Prevalent TB disease`$`TB disease outcomes`$`TB treatment`$Set(ATTprev=1,filterFun=function(x) !x$isLeaf)
+## print(kexp,'ATTprev')

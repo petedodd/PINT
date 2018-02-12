@@ -68,7 +68,8 @@ CFRtxN(1:10)                            #test
 ltbi.prev <- function(a,coprev){
   tmp <- PZ$LTBI04$r(length(a))
   tmp[a>=5] <- PZ$LTBI514$r(sum(a>=5))
-  pmax(0,tmp - coprev)
+  tmp
+  ## pmax(0,tmp - coprev) # already taken into account with decision tree
 }
 ltbi.prev(1:10,0.1)
 
