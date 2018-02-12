@@ -154,7 +154,7 @@ D[,.(iso3,e_inc_num_m014,e_inc_num_f014,n_m_0_4,n_m_5_14,n_f_0_4,n_f_5_14,e_inc_
 D[,cdr04:=(n_m_0_4+n_f_0_4)/((e_inc_num_m014 + e_inc_num_f014)/2)]
 D[,cdr04ab:=(n_m_0_4+n_f_0_4)/((e_inc_num_m014 + e_inc_num_f014)/2)]
 D[!is.finite(cdr04),cdr04:=0]
-D[cdr04>1,cdr04:=1]
+D[cdr04z>1,cdr04:=1]
 D[,cdr04ab:=((1-cdr04)/cdr04)/((e_inc_num_m014_hi-e_inc_num_m014_lo)/(3.92*e_inc_num_m014))^2-1]
 D[!is.finite(cdr04ab) | cdr04ab<0, cdr04ab:=0] #NB CDR sampling needs to handle 0s
 

@@ -93,6 +93,11 @@ PSA <- rbind(PSA,PSO)
 rm(PSO)
 PSA
 
+## ==========  HIV/ART
+load('data/DL.Rdata')
+unique(DL[,.(iso3,hivprop,artprop)])
+
+
 ## ========================================
 ## ------ tree model calculations
 F <- makeTfuns(kexp,unique(kexp$fieldsAll))
@@ -144,14 +149,12 @@ pp <- function(x,sf=3,ns=0) format(signif(round(x),sf), nsmall=ns, big.mark=",")
 
 
 
-(PSARg[1,ed] - PSARg[2,ed])             #will be a bit lower with CDR correction
-(PSARg[1,el] - PSARg[2,el])             #will be a bit lower with CDR correction
-## TODO IPT read more
-## TODO check NAs
-
-PSARg
-
-summary(PSA)
+## (PSARg[1,ed] - PSARg[2,ed])             #will be a bit lower with CDR correction
+## (PSARg[1,el] - PSARg[2,el])             #will be a bit lower with CDR correction
+## ## TODO IPT read more
+## ## TODO check NAs
+## PSARg
+## summary(PSA)
 
 ## ==== full results table w/o uncertainty for now ===
 ## global
@@ -197,9 +200,9 @@ tmp[,intervention:='C-A']
 PSAA <- rbind(PSAA,tmp1,tmp)
 
 ## == summary
-PSAGm <- PSAG[,.(incidence=mean(ei),deaths=mean(ed),ATT=mean(et),IPT=mean(ept),LYL=mean(el)*1e-3),by=.(intervention)]
-PSARm <- PSAR[,.(incidence=mean(ei),deaths=mean(ed),ATT=mean(et),IPT=mean(ept),LYL=mean(el)*1e-3),by=.(intervention,g_whoregion)]
-PSAAm <- PSAA[,.(incidence=mean(ei),deaths=mean(ed),ATT=mean(et),IPT=mean(ept),LYL=mean(el)*1e-3),by=.(intervention,acat)]
+PSAGm <- PSAG[,.(incidence=mean(ei),deaths=mean(ed),ATT=mean(et),IPT=mean(ept),kLY=mean(el)*1e-3),by=.(intervention)]
+PSARm <- PSAR[,.(incidence=mean(ei),deaths=mean(ed),ATT=mean(et),IPT=mean(ept),kLY=mean(el)*1e-3),by=.(intervention,g_whoregion)]
+PSAAm <- PSAA[,.(incidence=mean(ei),deaths=mean(ed),ATT=mean(et),IPT=mean(ept),kLY=mean(el)*1e-3),by=.(intervention,acat)]
 
 ## == visits, children
 ## - visits
@@ -221,7 +224,7 @@ HCa <- HCa[,.(hhc=mean(hhc)),by=acat]
 
 ## == gathering
 intl <- c("No intervention","Under 5 & HIV+ve","Under 5 & HIV+ve & LTBI+","B-A","C-A")
-varlv <- c('households','contacts','IPT','ATT','incidence','deaths','LYL')
+varlv <- c('households','contacts','IPT','ATT','incidence','deaths','kLY')
 nint <- length(intl)
 
 ## global
@@ -229,8 +232,8 @@ RTg <- melt(PSAGm,id='intervention')
 RTx <- data.table(intervention=rep(intl,2),
                   variable=rep(c('households','contacts'),each=nint),
                   value=rep(0,2*nint))  #visits & contacts
-RTx[grepl('5',intervention) & variable=='households',value:=HHV[,sum(visits)]]
-RTx[grepl('5',intervention) & variable=='contacts',value:=HCg[,hhc]]
+RTx[grepl('5|-A',intervention) & variable=='households',value:=HHV[,sum(visits)]]
+RTx[grepl('5|-A',intervention) & variable=='contacts',value:=HCg[,hhc]]
 RTg <- rbind(RTg,RTx)
 
 ## regional
@@ -240,8 +243,8 @@ RTx <- data.table(intervention=rep(intl,2*6),
                   g_whoregion=rep(RTr[,unique(g_whoregion)],each=nint*2),
                   variable=rep(c('households','contacts'),each=nint),
                   value=rep(0,2*nint*6))  #visits & contacts
-for(reg in RTx[,unique(g_whoregion)]) RTx[grepl('5',intervention) & variable=='households' & g_whoregion==reg,value:=HHVR[g_whoregion==reg,sum(visits)]]
-for(reg in RTx[,unique(g_whoregion)]) RTx[grepl('5',intervention) & variable=='contacts' & g_whoregion==reg,value:=HCr[g_whoregion==reg,hhc]]
+for(reg in RTx[,unique(g_whoregion)]) RTx[grepl('5|-A',intervention) & variable=='households' & g_whoregion==reg,value:=HHVR[g_whoregion==reg,sum(visits)]]
+for(reg in RTx[,unique(g_whoregion)]) RTx[grepl('5|-A',intervention) & variable=='contacts' & g_whoregion==reg,value:=HCr[g_whoregion==reg,hhc]]
 RTr <- rbind(RTr,RTx)
 RTr <- dcast(RTr,intervention+variable ~ g_whoregion,value.var = 'value')
 
@@ -251,8 +254,8 @@ RTx <- data.table(intervention=rep(RTg[,unique(intervention)],2*2),
                   variable=rep(c('households','contacts'),each=nint),
                   acat=rep(RTa[,unique(acat)],each=nint*2),
                   value=rep(0,4*nint))  #visits & contacts
-for(reg in RTx[,unique(acat)]) RTx[grepl('5',intervention) & variable=='households' & acat==reg,value:=HHV[,sum(visits)]]
-for(reg in RTx[,unique(acat)]) RTx[grepl('5',intervention) & variable=='contacts' & acat==reg,value:=HCa[acat==reg,hhc]]
+for(reg in RTx[,unique(acat)]) RTx[grepl('5|-A',intervention) & variable=='households' & acat==reg,value:=HHV[,sum(visits)]]
+for(reg in RTx[,unique(acat)]) RTx[grepl('5|-A',intervention) & variable=='contacts' & acat==reg,value:=HCa[acat==reg,hhc]]
 RTa <- rbind(RTa,RTx)
 RTa <- dcast(RTa,intervention+variable ~ acat,value.var = 'value')
 
@@ -261,8 +264,15 @@ RTg$intervention <- factor(RTg$intervention,levels=intl,ordered=TRUE); RTg$varia
 RTr$intervention <- factor(RTr$intervention,levels=intl,ordered=TRUE); RTr$variable <- factor(RTr$variable,levels=varlv,ordered=TRUE)
 RTa$intervention <- factor(RTa$intervention,levels=intl,ordered=TRUE); RTa$variable <- factor(RTa$variable,levels=varlv,ordered=TRUE)
 RTg <- RTg[order(intervention,variable),]; RTr <- RTr[order(intervention,variable),]; RTa <- RTa[order(intervention,variable),]
-
+names(RTg)[3] <- 'Global'
 RT <- cbind(RTg,RTr[,-c(1:2),with=FALSE],RTa[,-c(1:2),with=FALSE])
+
+## NNx
+x <- RT[intervention=='B-A',Global]
+(ba <- c(hhn=-x[1]/x[6],hcn=-x[2]/x[6],ptn=-x[3]/x[6],txn=-x[4]/x[6]))
+x <- RT[intervention=='C-A',Global]
+(ca <- c(hhn=-x[1]/x[6],hcn=-x[2]/x[6],ptn=-x[3]/x[6],txn=-x[4]/x[6]))
+
 
 ## == formatting & output
 library(officer)
@@ -271,11 +281,18 @@ library(flextable)
 
 fwrite(RT,file='tables/RT.csv')
 
+## formats
 tmp <- RT[,lapply(.SD,pp),.SDcols=3:11]
 tmp <- cbind(RT[,1:2,with=FALSE],tmp)
+intz <- as.character(tmp$intervention)
+intz[1:7] <- paste0('A: ',intz[1:7])
+intz[1:7 + 7] <- paste0('B: ',intz[1:7 + 7])
+intz[1:7 + 14] <- paste0('C: ',intz[1:7 + 14])
+tmp$intervention <- factor(intz)
 
 myft <- regulartable(tmp)
 myft <- merge_v(myft, j = c("intervention", "variable") )
+## myft <- autofit(myft)
 myft
 
 read_docx() %>%
@@ -286,7 +303,7 @@ read_docx() %>%
   print(target = "tables/RT.docx") %>% 
     invisible()
 
-## myft <- autofit(myft)
+## all country output too
 
 ## ## writing out
 ## read_docx() %>%
@@ -297,14 +314,9 @@ read_docx() %>%
 
 ## write.csv(PSARg,file='tables/globaloutput.csv')
 
-
-
-
-
 ## TODO
-## u5 intervention and outputs
-## number of tracing and courses IPT
-## o5 intervention and outputs
 ## HIV functions
 ## document assumptions esp CDR
 ## CY compare
+## uncertainty
+## hh uncertainty
