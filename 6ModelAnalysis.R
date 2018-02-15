@@ -3,11 +3,13 @@
 ## TODO courses treats screens
 ## see end file TODO 
 rm(list=ls())                           #clear
+
 ## next 4 for formatting & outputs
 library(officer)
 library(magrittr)
 library(flextable)
 pp <- function(x,sf=3,ns=0) format(signif(round(x),sf), nsmall=ns, big.mark=",",scientific = FALSE)
+
 ## load decision tree model and functions
 source('3ModelDefn.R')    #load the decision tree model logic/definition
 source('4ModelFuns.R')    #function defns for decision tree (and distribution parameters)
@@ -17,17 +19,47 @@ nrep <- 1e2                             #number of reps for PSA
 load('data/DLC.Rdata')                  #parent data for children 0-4
 PSA <- DLC[rep(1:nrow(DLC),nrep),]      #build PSA data frame
 PSA[,repn:=rep(1:nrep,each=nrow(DLC))]
+## ======= children 5-14
+load('data/DLO.Rdata')                  #parent data for children 5-14
+PSO <- DLO[rep(1:nrow(DLO),nrep),]      #build PSA data frame
+PSO[,repn:=rep(1:nrep,each=nrow(DLO))]
+
+## variables needed for PSA
+PSA[,az:=rep(1,nrow(PSA))]               #dummy ages for functions defined like that
+PSA[,cm:=cdr04]
+PSA[,cab:=cdr04ab]
+PSA[,acat:="[0,5)"]                     #age group
+PSO[,az:=rep(10,nrow(PSO))]                #dummy ages for functions defined like that
+PSO[,cm:=cdr514]
+PSO[,cab:=cdr514ab]
+PSO[,acat:="[5,15)"]                     #age group
+## join these
+names(PSA)
+names(PSO)
+PSA <- rbind(PSA,PSO,fill=TRUE)
+rm(PSO)
+## HIV copies of this data
+PSAh <- copy(PSA)
+PSAa <- copy(PSA)
+PSA[,hiv:=0]; PSAh[,hiv:=1]; PSAa[,hiv:=1]
+PSA[,art:=0]; PSAh[,art:=0]; PSAa[,art:=1]
+PSA <- rbind(PSA,PSAh,PSAa)
+rm(PSAh,PSAa)
 
 ## compute variables for PSA data table
-azu5 <- rep(1,nrow(PSA))                #dummy ages for functions defined like that
-PSA[,CDR:=CDR(cdr04,cdr04ab)]           #CDR
-PSA[,CFRtxY:=CFRtxY(azu5)]              #CDR on ATT
-PSA[,CFRtxN:=CFRtxN(azu5)]              #CDR not on ATT
-PSA[,coprev:=coprev(azu5)]              #coprevalent TB
-PSA[,IPTrr:=IPTrr(azu5)]                #IPT RR for incident TB
-PSA[,ltbi.prev:=ltbi.prev(azu5,coprev)] #LTBI prevalence
-PSA[,pprogn:=avu5progprob(a1,a2,a3,a4,a5,LAT)] #progression probability (averaged 0-4)
-PSA[,rrtst:=RRtst(azu5)]                #RR for incidence if TST+ve
+PSA[,CDR:=CDR(cm,cab)]           #CDR
+PSA[,coprev:=coprev(az)]                #coprevalent TB
+PSA[,IPTrr:=IPTrr(az)]                  #IPT RR for incident TB
+PSA[,ltbi.prev:=ltbi.prev(az,coprev)]   #LTBI prevalence
+PSA[,rrtst:=RRtst(az)]                  #RR for incidence if TST+ve
+PSA[,CFRtxY:=CFRtxY(az,hiv,art)]                #CFR on ATT
+PSA[,CFRtxN:=CFRtxN(az,hiv,art)]                #CFR not on ATT
+PSA[acat=="[0,5)",
+    pprogn:=avu5progprob(a1,a2,a3,a4,a5,LAT,hiv,art)] #progression probability (averaged 0-4)
+PSA[acat=="[5,15)",
+    pprogn:=avo5progprob(a6,a7,a8,a9,a10,
+                         a11,a12,a13,a14,a15,
+                         LAT,hiv,art)] #progression probability (averaged 5-14)
 PSA[,inc:=ltbi.prev * pprogn]           #TB incidence, total
 PSA[,progn.LP.PTn:=pprogn*rrtst/(1+rrtst)] #TB incidence in LTBI +ve PT-ve
 PSA[,progn.LN.PTn:=pprogn*1/(1+rrtst)]     #TB incidence in LTBI -ve PT-ve
@@ -36,6 +68,7 @@ PSA[,progn.LN.PTp:=progn.LN.PTn*IPTrr]  #TB incidence in LTBI -ve PT+ve
 PSA[,PTcov.N:=0]                        #coverage of PT in LTBI -ve
 PSA[,PTcov.P:=0]                        #coverage of PT in LTBI +ve
 
+
 ## intervention set
 npsa <- nrow(PSA)
 PSA <- PSA[rep(1:npsa,3),]              #replicates by intervention
@@ -43,71 +76,82 @@ PSA[,intervention:=c(rep('No intervention',npsa),
                      rep('Under 5 & HIV+ve',npsa),
                      rep('Under 5 & HIV+ve & LTBI+',npsa))]
 PSA[intervention!='No intervention',CDR:=1] #screening
-PSA[intervention!='No intervention',PTcov.N:=1] #IPT
-PSA[intervention!='No intervention',PTcov.P:=1] #IPT
-PSA[,acat:="[0,5)"]                     #age group
-
-## ======= children 5-14
-load('data/DLO.Rdata')                  #parent data for children 5-14
-PSO <- DLO[rep(1:nrow(DLO),nrep),]      #build PSA data frame
-PSO[,repn:=rep(1:nrep,each=nrow(DLO))]
-
-## compute variables for PSA data table
-azu5 <- rep(10,nrow(PSO))                #dummy ages for functions defined like that
-PSO[,CDR:=CDR(cdr514,cdr514ab)]         #CDR
-PSO[,CFRtxY:=CFRtxY(azu5)]              #CDR on ATT
-PSO[,CFRtxN:=CFRtxN(azu5)]              #CDR not on ATT
-PSO[,coprev:=coprev(azu5)]              #coprevalent TB
-PSO[,IPTrr:=IPTrr(azu5)]                #IPT RR for incident TB
-PSO[,ltbi.prev:=ltbi.prev(azu5,coprev)] #LTBI prevalence
-PSO[,pprogn:=avo5progprob(a6,a7,a8,a9,a10,
-                          a11,a12,a13,a14,a15,
-                          LAT)] #progression probability (averaged 0-4)
-PSO[,rrtst:=RRtst(azu5)]                #RR for incidence if TST+ve
-PSO[,inc:=ltbi.prev * pprogn]           #TB incidence, total
-PSO[,progn.LP.PTn:=pprogn*rrtst/(1+rrtst)] #TB incidence in LTBI +ve PT-ve
-PSO[,progn.LN.PTn:=pprogn*1/(1+rrtst)]     #TB incidence in LTBI -ve PT-ve
-PSO[,progn.LP.PTp:=progn.LP.PTn*IPTrr]  #TB incidence in LTBI +ve PT+ve
-PSO[,progn.LN.PTp:=progn.LN.PTn*IPTrr]  #TB incidence in LTBI -ve PT+ve
-PSO[,PTcov.N:=0]                        #coverage of PT in LTBI -ve
-PSO[,PTcov.P:=0]                        #coverage of PT in LTBI +ve
-
-## intervention set
-PSO <- PSO[rep(1:npsa,3),]              #replicates by intervention
-PSO[,intervention:=c(rep('No intervention',npsa),
-                     rep('Under 5 & HIV+ve',npsa),
-                     rep('Under 5 & HIV+ve & LTBI+',npsa))]
-PSO[intervention!='No intervention',CDR:=1] #screening
-PSO[intervention=='Under 5 & HIV+ve & LTBI+',PTcov.P:=1] #PT for TST+
+PSA[acat=="[0,5)" & intervention!='No intervention',PTcov.N:=1] #IPT for all under 5s
+PSA[acat=="[0,5)" & intervention!='No intervention',PTcov.P:=1] #IPT for all under 5s
+PSA[acat=="[5,15)" & hiv==1 & intervention!='No intervention',PTcov.N:=1] #IPT o5s HIV+
+PSA[acat=="[5,15)" & hiv==1 & intervention!='No intervention',PTcov.P:=1] #IPT o5s HIV+
+PSA[acat=="[5,15)" & intervention=='Under 5 & HIV+ve & LTBI+',PTcov.P:=1] #IPT for o5s L+
 
 
-## other changes once HIV included TODO
+## ## ======= children 5-14
+## load('data/DLO.Rdata')                  #parent data for children 5-14
+## PSO <- DLO[rep(1:nrow(DLO),nrep),]      #build PSA data frame
+## PSO[,repn:=rep(1:nrep,each=nrow(DLO))]
 
-PSO[,acat:="[5,15)"]                    #age group
+## ## compute variables for PSA data table
+## azu5 <- rep(10,nrow(PSO))                #dummy ages for functions defined like that
+## PSA[,az:=azu5]
+## PSO[,CDR:=CDR(cdr514,cdr514ab)]         #CDR
+## PSO[,CFRtxY:=CFRtxY(az)]                #CDR on ATT
+## PSO[,CFRtxN:=CFRtxN(az)]                #CDR not on ATT
+## PSO[,coprev:=coprev(az)]                #coprevalent TB
+## PSO[,IPTrr:=IPTrr(az)]                  #IPT RR for incident TB
+## PSO[,ltbi.prev:=ltbi.prev(az,coprev)]   #LTBI prevalence
+## PSO[,pprogn:=avo5progprob(a6,a7,a8,a9,a10,
+##                           a11,a12,a13,a14,a15,
+##                           LAT)] #progression probability (averaged 0-4)
+## PSO[,rrtst:=RRtst(az)]                  #RR for incidence if TST+ve
+## PSO[,inc:=ltbi.prev * pprogn]           #TB incidence, total
+## PSO[,progn.LP.PTn:=pprogn*rrtst/(1+rrtst)] #TB incidence in LTBI +ve PT-ve
+## PSO[,progn.LN.PTn:=pprogn*1/(1+rrtst)]     #TB incidence in LTBI -ve PT-ve
+## PSO[,progn.LP.PTp:=progn.LP.PTn*IPTrr]  #TB incidence in LTBI +ve PT+ve
+## PSO[,progn.LN.PTp:=progn.LN.PTn*IPTrr]  #TB incidence in LTBI -ve PT+ve
+## PSO[,PTcov.N:=0]                        #coverage of PT in LTBI -ve
+## PSO[,PTcov.P:=0]                        #coverage of PT in LTBI +ve
+
+## ## intervention set
+## PSO <- PSO[rep(1:npsa,3),]              #replicates by intervention
+## PSO[,intervention:=c(rep('No intervention',npsa),
+##                      rep('Under 5 & HIV+ve',npsa),
+##                      rep('Under 5 & HIV+ve & LTBI+',npsa))]
+## PSO[intervention!='No intervention',CDR:=1] #screening
+## PSO[intervention=='Under 5 & HIV+ve & LTBI+',PTcov.P:=1] #PT for TST+
+
+## PSO[,acat:="[5,15)"]                    #age group
+
+## ## ==== join
+## ## ditch BCG coverage by age now
+## PSA[,a1:=NULL];PSA[,a2:=NULL];PSA[,a3:=NULL];PSA[,a4:=NULL];PSA[,a5:=NULL];
+## PSO[,a6:=NULL];PSO[,a7:=NULL];PSO[,a8:=NULL];PSO[,a9:=NULL];PSO[,a10:=NULL];
+## PSO[,a11:=NULL];PSO[,a12:=NULL];PSO[,a13:=NULL];PSO[,a14:=NULL];PSO[,a15:=NULL];
+## PSA[,cdr04:=NULL]; PSA[,cdr04ab:=NULL]; PSO[,cdr514:=NULL]; PSO[,cdr514ab:=NULL];
+## PSA[,u5hhc.l:=NULL]; PSA[,u5hhc.sdl:=NULL]; PSO[,o5hhc.l:=NULL]; PSO[,o5hhc.sdl:=NULL];
+## names(PSA)[5:6] <- names(PSO)[5:6] <- c('hhc','hhc.sd')
+## PSA <- rbind(PSA,PSO)
+## rm(PSO)
+## PSA[,hiv:=0]
+## PSA[,art:=0]
+
+
 ## ==== join
 ## ditch BCG coverage by age now
-PSA[,a1:=NULL];PSA[,a2:=NULL];PSA[,a3:=NULL];PSA[,a4:=NULL];PSA[,a5:=NULL];
-PSO[,a6:=NULL];PSO[,a7:=NULL];PSO[,a8:=NULL];PSO[,a9:=NULL];PSO[,a10:=NULL];
-PSO[,a11:=NULL];PSO[,a12:=NULL];PSO[,a13:=NULL];PSO[,a14:=NULL];PSO[,a15:=NULL];
-PSA[,cdr04:=NULL]; PSA[,cdr04ab:=NULL]; PSO[,cdr514:=NULL]; PSO[,cdr514ab:=NULL];
-PSA[,u5hhc.l:=NULL]; PSA[,u5hhc.sdl:=NULL]; PSO[,o5hhc.l:=NULL]; PSO[,o5hhc.sdl:=NULL];
-names(PSA)[5:6] <- names(PSO)[5:6] <- c('hhc','hhc.sd')
-PSA <- rbind(PSA,PSO)
-rm(PSO)
-PSA[,hiv:=0]
-PSA[,art:=0]
+## PSA[,a1:=NULL];PSA[,a2:=NULL];PSA[,a3:=NULL];PSA[,a4:=NULL];PSA[,a5:=NULL];
+## PSA[,a6:=NULL];PSA[,a7:=NULL];PSA[,a8:=NULL];PSA[,a9:=NULL];PSA[,a10:=NULL];
+## PSA[,a11:=NULL];PSA[,a12:=NULL];PSA[,a13:=NULL];PSA[,a14:=NULL];PSA[,a15:=NULL];
+## PSA[,cdr04:=NULL]; PSA[,cdr04ab:=NULL]; PSA[,cdr514:=NULL]; PSA[,cdr514ab:=NULL];
+## PSA[,u5hhc.l:=NULL]; PSA[,u5hhc.sdl:=NULL]; PSA[,o5hhc.l:=NULL]; PSA[,o5hhc.sdl:=NULL];
+
+## tidying
+PSA[,c(paste0('a',1:15)):=NULL]
+PSA[,c('cdr04','cdr04ab','cdr514','cdr514ab'):=NULL]
+PSA[acat=="[0,5)",hhc:=u5hhc]; PSA[acat=="[0,5)",hhc.sd:=u5hhc.sd]
+PSA[acat=="[5,15)",hhc:=o5hhc]; PSA[acat=="[5,15)",hhc.sd:=o5hhc.sd]
+PSA[,c('u5hhc.l','u5hhc.sdl','o5hhc.l','o5hhc.sdl','u5hhc','u5hhc.sd','o5hhc','o5hhc.sd'):=NULL]
+PSA[,c('az','cm','cab'):=NULL]
 
 
-## ==========  HIV/ART
-load('data/DL.Rdata')
-unique(DL[,.(iso3,hivprop,artprop)])
-
-PSAH <- copy(PSA)
-PSAH[,hiv:=1]
-PSAHa <- copy(PSAH)
-PSAHa[,art:=1]
-PSAH <- rbind(PSAH,PSAHa)
-rm(PSAHa)
+## TODO include hhc variance
+## TODO currently missing hhc
 
 ## ========================================
 ## ------ tree model calculations
@@ -115,8 +159,6 @@ F <- makeTfuns(kexp,unique(kexp$fieldsAll))
 names(F)
 ## getAQ(kexp,'LE')
 summary(F$checkfun(PSA))                         #check
-
-## TODO include hhc variance
 
 PSA$e.prevalent <- F$prevalentfun(PSA)
 PSA$e.incidence <- F$incidencefun(PSA)
@@ -127,10 +169,30 @@ PSA$e.IPT <- F$IPTfun(PSA)
 PSA$e.LTBI <- F$LTBIfun(PSA)
 PSA$e.ATTprev <- F$ATTprevfun(PSA)
 
+## ## testing
+## PSA[hiv==0,summary(e.incidence)]
+## PSA[hiv==1 & art==0,summary(e.incidence)]
+## PSA[hiv==1 & art==1,summary(e.incidence)]
+
+## PSA[hiv==0,summary(e.deaths)]
+## PSA[hiv==1 & art==0,summary(e.deaths)]
+## PSA[hiv==1 & art==1,summary(e.deaths)]
+
+
 ## multiply by number of children
+## TODO attention to HIV/ART
 PSA[,ehhc:=hhc]                         #TODO change to stochastic
+## HIV splits
+load('data/DL.Rdata')
+HIV <- unique(DL[,.(iso3,hivprop,artprop)])
+PSA <- merge(PSA,HIV,by='iso3',all.x=TRUE)
+PSA[hiv==0,ehhc:=ehhc*(1-hivprop)]
+PSA[hiv==1 & art==0,ehhc:=ehhc*hivprop*(1-artprop)]
+PSA[hiv==1 & art==1,ehhc:=ehhc*hivprop*artprop]
+PSA[,c('hivprop','artprop'):=NULL]
 ests <- grep('e\\.',names(PSA),value=TRUE)
 nest <- length(ests)
+
 PSA[,c(ests):=lapply(.SD,function(x) x*ehhc),.SDcols=ests] # needing to be: x HHC
 ## add this and visits to ests list to deal with generically
 PSA[,e.hhc:=hhc]          #HH contacts join into things dealt with generically
@@ -295,3 +357,4 @@ ggplot(data=RTM[!grepl('-A',intervention) &
 ## hh uncertainty
 ## CHECK CDR for incident cases?
 ## consider different TST for HIV+
+## consider different LE for HIV
