@@ -7,7 +7,7 @@ rm(list=ls())                           #clear
 library(officer)
 library(magrittr)
 library(flextable)
-pp <- function(x,sf=3,ns=0) format(signif(round(x),sf), nsmall=ns, big.mark=",")
+pp <- function(x,sf=3,ns=0) format(signif(round(x),sf), nsmall=ns, big.mark=",",scientific = FALSE)
 ## load decision tree model and functions
 source('3ModelDefn.R')    #load the decision tree model logic/definition
 source('4ModelFuns.R')    #function defns for decision tree (and distribution parameters)
@@ -94,11 +94,20 @@ PSA[,u5hhc.l:=NULL]; PSA[,u5hhc.sdl:=NULL]; PSO[,o5hhc.l:=NULL]; PSO[,o5hhc.sdl:
 names(PSA)[5:6] <- names(PSO)[5:6] <- c('hhc','hhc.sd')
 PSA <- rbind(PSA,PSO)
 rm(PSO)
-PSA
+PSA[,hiv:=0]
+PSA[,art:=0]
+
 
 ## ==========  HIV/ART
 load('data/DL.Rdata')
 unique(DL[,.(iso3,hivprop,artprop)])
+
+PSAH <- copy(PSA)
+PSAH[,hiv:=1]
+PSAHa <- copy(PSAH)
+PSAHa[,art:=1]
+PSAH <- rbind(PSAH,PSAHa)
+rm(PSAHa)
 
 ## ========================================
 ## ------ tree model calculations
@@ -224,14 +233,48 @@ myft
 
 fwrite(RT,file='tables/RT.csv')
 
+## simpler output for main article
+RTS <- RT[,.(intervention,variable,Global,`[0,5)`,`[5,15)`)]
+names(RTS)[2] <- 'quantity'
+RTS <- melt(RTS,id.vars = c('intervention','quantity'))
+RTS <- dcast(RTS,quantity + variable ~ intervention,value.var = 'value')
+RTS$variable <- factor(RTS$variable,levels=c('[0,5)','[5,15)','Global'),ordered=TRUE)
+RTS <- RTS[order(variable,quantity),]
+tmp <- RTS[,lapply(.SD,pp),.SDcols=3:ncol(RTS)]
+tmp <- cbind(RTS[,2:1,with=FALSE],tmp)
+myft2 <- regulartable(tmp)
+myft2 <- merge_v(myft2, j = c("variable","quantity") )
+## myft <- autofit(myft)
+myft2
+
 
 read_docx() %>%
-  body_add_par(value = "Global, regional, and age outputs", style = "heading 1") %>%
+  body_add_par(value = "Global and age outputs", style = "heading 1") %>%
   ## body_add_table(value = myft, style = "table_template" ) %>%
-  body_add_flextable(value = myft) %>%
+  body_add_flextable(value = myft2) %>%
   body_end_section(continuous = FALSE, landscape = TRUE) %>% 
-  print(target = "tables/RT.docx") %>% 
+  print(target = "tables/RTS.docx") %>% 
     invisible()
+
+## graph expts
+names(RT)[2] <- 'quantity'
+RTM <- melt(RT,id.vars = c('intervention','quantity'))
+
+ggplot(data=RTM[!grepl('-A',intervention) &
+                quantity %in% c('e.ATT','e.IPT','e.incidence','e.deaths','e.LE') &
+                variable %in% c('AFR','EUR','WPR','SEA','WPO','AMR')],
+       aes(x=variable,y=value,fill=intervention)) +
+  geom_bar(stat='identity',position='dodge') + 
+  coord_flip() + facet_wrap(~quantity,scales = 'free_x')
+
+## ## or col by region:
+## ggplot(data=RTM[!grepl('-A',intervention) &
+##                 quantity %in% c('e.ATT','e.IPT','e.incidence','e.deaths','e.LE') &
+##                 variable %in% c('AFR','EUR','WPR','SEA','WPO','AMR')],
+##        aes(x=intervention,y=value,fill=variable)) +
+##   geom_bar(stat='identity',position='dodge') + 
+##   coord_flip() + facet_wrap(~quantity,scales = 'free_x')
+
 
 ## all country output too
 
@@ -250,3 +293,5 @@ read_docx() %>%
 ## CY compare
 ## uncertainty
 ## hh uncertainty
+## CHECK CDR for incident cases?
+## consider different TST for HIV+

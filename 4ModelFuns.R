@@ -12,6 +12,10 @@ names(PZ)
 
 
 ## =========== function definitions ===============
+oddit <- function(x) x/(1-x)
+ioddit <- function(x) x/(1+x)
+logit <- function(x) log(oddit(x))
+ilogit <- function(x) ioddit(exp(x))
 
 ## ## what function are needed?
 ## clx <- showParmz(kexp)$calcs
@@ -41,27 +45,42 @@ CDR <- function(mn,ab){
 ## TODO check and change
 
 ## == CFR on tx
-CFRtxY <- function(a){#,hiv,art){        #NB optimized for clarity not speed
+CFRtxY <- function(a,hiv=0,art=0){#NB optimized for clarity not speed
+  if(length(a)>1 & length(hiv)==1) hiv <- rep(hiv,length(a))
+  if(length(a)>1 & length(art)==1) art <- rep(art,length(a))
   tmp <- PZ$ontxY$r(length(a))
   tmp[a>=5] <- PZ$ontxO$r(sum(a>=5))  #NB this could be achieved in  the tree model
   ## hivartOR
+  Z <- PZ$hivartOR$r(length(a))
+  hor <- rep(1,length(a))
+  tmp <- logit(tmp)                     #transformt
+  tmp[hiv>0] <- tmp[hiv>0]+Z[hiv>0,1]
+  tmp[art>0] <- tmp[art>0]+Z[art>0,2]
+  tmp <- ilogit(tmp)                    #inverse transform
   tmp
 }
 CFRtxY(1:10)                            #test
-## TODO hivartOR
+summary(CFRtxY(1:1e3))
+summary(CFRtxY(1:1e3,hiv=1))
+summary(CFRtxY(1:1e3,hiv=1,art=1))
+
 
 ## == CFR off tx
-CFRtxN <- function(a){#,hiv,art){
-  tmp <- PZ$notxY$r(length(a))
-  ## notxHY
-  ## notxHAY
-  tmp[a>=5] <- PZ$notxO$r(sum(a>=5))
-  ## notxHO
-  ## notxHAO
+CFRtxN <- function(a,hiv=0,art=0){
+  if(length(a)>1 & length(hiv)==1) hiv <- rep(hiv,length(a))
+  if(length(a)>1 & length(art)==1) art <- rep(art,length(a))
+  tmp <- PZ$notxY$r(length(a))          #default a<5 and hiv=art=0
+  tmp[a<5 & hiv>0 & art==0] <- PZ$notxHY$r(sum(a<5 & hiv>0 & art==0)) #u5,HIV+,ART-
+  tmp[a<5 & hiv>0 & art>0] <- PZ$notxHAY$r(sum(a<5 & hiv>0 & art>0)) #u5,HIV+,ART+
+  tmp[a>=5] <- PZ$notxO$r(sum(a>=5))    #o5, HIV-ve
+  tmp[a>=5 & hiv>0 & art==0] <- PZ$notxHO$r(sum(a>=5 & hiv>0 & art==0)) #o5,HIV+,ART-
+  tmp[a>=5 & hiv>0 & art>0] <- PZ$notxHAO$r(sum(a>=5 & hiv>0 & art>0)) #o5,HIV+,ART+
   tmp
 }
 CFRtxN(1:10)                            #test
-## TODO hiv
+summary(CFRtxN(1:1e3))
+summary(CFRtxN(1:1e3,hiv=1))
+summary(CFRtxN(1:1e3,hiv=1,art=1))
 
 ## == LTBI infection probability
 #NB this is LTBI given not active: it is taken to be max(0,LTBI-coprev)
@@ -110,28 +129,58 @@ progprob <- function(a,bcgcov,lat){
 ## summary(progprob(runif(1e3,0,1),0.99,90))
 
 ## average for u5s
-avu5progprob <- function(a1,a2,a3,a4,a5,lat){
+avu5progprob <- function(a1,a2,a3,a4,a5,lat,hiv=0,art=0){
   zs <- rep(0,length(a1))
-  (progprob(zs+0.5,a1*1e-2,lat)+progprob(zs+1.5,a2*1e-2,lat)+
-   progprob(zs+2.5,a3*1e-2,lat)+progprob(zs+3.5,a4*1e-2,lat)+
-   progprob(zs+4.5,a5*1e-2,lat))/5
+  if(length(a1)>1 & length(hiv)==1) hiv <- rep(hiv,length(a1))
+  if(length(a1)>1 & length(art)==1) art <- rep(art,length(a1))
+  ans <- (progprob(zs+0.5,a1*1e-2,lat)+progprob(zs+1.5,a2*1e-2,lat)+
+          progprob(zs+2.5,a3*1e-2,lat)+progprob(zs+3.5,a4*1e-2,lat)+
+          progprob(zs+4.5,a5*1e-2,lat))/5
+  if(any(hiv>0)){ #treat as IRR for escape
+    hr <- PZ$hivpi$r(sum(hiv>0))
+    ans[hiv>0] <- 1-(1-ans[hiv>0])^hr
+  }
+  if(any(art>0)){ #treat as IRR for escape
+    hr <- PZ$artp$r(sum(art>0))
+    ans[art>0] <- 1-(1-ans[art>0])^hr
+  }
+  ans
 }
+ate <- rep(.9,1e3)                      #test
+summary(avu5progprob(ate,ate,ate,ate,ate,lat=ate))
+summary(avu5progprob(ate,ate,ate,ate,ate,lat=ate,hiv=1))
+summary(avu5progprob(ate,ate,ate,ate,ate,lat=ate,hiv=1,art=1))
 
 ## average for o5s
 avo5progprob <- function(a6,a7,a8,a9,a10,
                          a11,a12,a13,a14,a15,
-                         lat){
+                         lat,hiv=0,art=0){
   zs <- rep(5,length(a6))
-  (progprob(zs+0.5,a6*1e-2,lat)+progprob(zs+1.5,a7*1e-2,lat)+
-   progprob(zs+2.5,a8*1e-2,lat)+progprob(zs+3.5,a9*1e-2,lat)+
-   progprob(zs+4.5,a10*1e-2,lat)+progprob(zs+5.5,a11*1e-2,lat)+
-   progprob(zs+6.5,a12*1e-2,lat)+progprob(zs+7.5,a13*1e-2,lat)+
-   progprob(zs+8.5,a14*1e-2,lat)+progprob(zs+9.5,a15*1e-2,lat)
-   )/10
+  if(length(a6)>1 & length(hiv)==1) hiv <- rep(hiv,length(a6))
+  if(length(a6)>1 & length(art)==1) art <- rep(art,length(a6))
+  ans <- (progprob(zs+0.5,a6*1e-2,lat)+progprob(zs+1.5,a7*1e-2,lat)+
+          progprob(zs+2.5,a8*1e-2,lat)+progprob(zs+3.5,a9*1e-2,lat)+
+          progprob(zs+4.5,a10*1e-2,lat)+progprob(zs+5.5,a11*1e-2,lat)+
+          progprob(zs+6.5,a12*1e-2,lat)+progprob(zs+7.5,a13*1e-2,lat)+
+          progprob(zs+8.5,a14*1e-2,lat)+progprob(zs+9.5,a15*1e-2,lat)
+  )/10
+  if(any(hiv>0)){ #treat as IRR for escape
+    hr <- PZ$hivpi$r(sum(hiv>0))
+    ans[hiv>0] <- 1-(1-ans[hiv>0])^hr
+  }
+  if(any(art>0)){ #treat as IRR for escape
+    hr <- PZ$artp$r(sum(art>0))
+    ans[art>0] <- 1-(1-ans[art>0])^hr
+  }
+  ans
 }
+summary(avo5progprob(ate,ate,ate,ate,ate,ate,ate,ate,ate,ate,lat=ate))
+summary(avo5progprob(ate,ate,ate,ate,ate,ate,ate,ate,ate,ate,lat=ate,hiv=1))
+summary(avo5progprob(ate,ate,ate,ate,ate,ate,ate,ate,ate,ate,lat=ate,hiv=1,art=1))
 
 
-## === disaggregating by TST status? may not be used??
+
+## === disaggregating by TST status - used for TST-driven interventions
 RRtst <- function(a){
   PZ$RRtst10$r(length(a))
 }
@@ -143,9 +192,3 @@ IPTrr <- function(a){
 }
 ## IPTrr(1:10)
 
-
-
-
-
-## ------ additionally ----
-## names(PZ)
