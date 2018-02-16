@@ -1,15 +1,10 @@
-## TODO
-## HIV functions
-## TODO courses treats screens
 ## see end file TODO 
 rm(list=ls())                           #clear
-
 ## next 4 for formatting & outputs
 library(officer)
 library(magrittr)
 library(flextable)
 pp <- function(x,sf=3,ns=0) format(signif(round(x),sf), nsmall=ns, big.mark=",",scientific = FALSE)
-
 ## load decision tree model and functions
 source('3ModelDefn.R')    #load the decision tree model logic/definition
 source('4ModelFuns.R')    #function defns for decision tree (and distribution parameters)
@@ -83,64 +78,6 @@ PSA[acat=="[5,15)" & hiv==1 & intervention!='No intervention',PTcov.P:=1] #IPT o
 PSA[acat=="[5,15)" & intervention=='Under 5 & HIV+ve & LTBI+',PTcov.P:=1] #IPT for o5s L+
 
 
-## ## ======= children 5-14
-## load('data/DLO.Rdata')                  #parent data for children 5-14
-## PSO <- DLO[rep(1:nrow(DLO),nrep),]      #build PSA data frame
-## PSO[,repn:=rep(1:nrep,each=nrow(DLO))]
-
-## ## compute variables for PSA data table
-## azu5 <- rep(10,nrow(PSO))                #dummy ages for functions defined like that
-## PSA[,az:=azu5]
-## PSO[,CDR:=CDR(cdr514,cdr514ab)]         #CDR
-## PSO[,CFRtxY:=CFRtxY(az)]                #CDR on ATT
-## PSO[,CFRtxN:=CFRtxN(az)]                #CDR not on ATT
-## PSO[,coprev:=coprev(az)]                #coprevalent TB
-## PSO[,IPTrr:=IPTrr(az)]                  #IPT RR for incident TB
-## PSO[,ltbi.prev:=ltbi.prev(az,coprev)]   #LTBI prevalence
-## PSO[,pprogn:=avo5progprob(a6,a7,a8,a9,a10,
-##                           a11,a12,a13,a14,a15,
-##                           LAT)] #progression probability (averaged 0-4)
-## PSO[,rrtst:=RRtst(az)]                  #RR for incidence if TST+ve
-## PSO[,inc:=ltbi.prev * pprogn]           #TB incidence, total
-## PSO[,progn.LP.PTn:=pprogn*rrtst/(1+rrtst)] #TB incidence in LTBI +ve PT-ve
-## PSO[,progn.LN.PTn:=pprogn*1/(1+rrtst)]     #TB incidence in LTBI -ve PT-ve
-## PSO[,progn.LP.PTp:=progn.LP.PTn*IPTrr]  #TB incidence in LTBI +ve PT+ve
-## PSO[,progn.LN.PTp:=progn.LN.PTn*IPTrr]  #TB incidence in LTBI -ve PT+ve
-## PSO[,PTcov.N:=0]                        #coverage of PT in LTBI -ve
-## PSO[,PTcov.P:=0]                        #coverage of PT in LTBI +ve
-
-## ## intervention set
-## PSO <- PSO[rep(1:npsa,3),]              #replicates by intervention
-## PSO[,intervention:=c(rep('No intervention',npsa),
-##                      rep('Under 5 & HIV+ve',npsa),
-##                      rep('Under 5 & HIV+ve & LTBI+',npsa))]
-## PSO[intervention!='No intervention',CDR:=1] #screening
-## PSO[intervention=='Under 5 & HIV+ve & LTBI+',PTcov.P:=1] #PT for TST+
-
-## PSO[,acat:="[5,15)"]                    #age group
-
-## ## ==== join
-## ## ditch BCG coverage by age now
-## PSA[,a1:=NULL];PSA[,a2:=NULL];PSA[,a3:=NULL];PSA[,a4:=NULL];PSA[,a5:=NULL];
-## PSO[,a6:=NULL];PSO[,a7:=NULL];PSO[,a8:=NULL];PSO[,a9:=NULL];PSO[,a10:=NULL];
-## PSO[,a11:=NULL];PSO[,a12:=NULL];PSO[,a13:=NULL];PSO[,a14:=NULL];PSO[,a15:=NULL];
-## PSA[,cdr04:=NULL]; PSA[,cdr04ab:=NULL]; PSO[,cdr514:=NULL]; PSO[,cdr514ab:=NULL];
-## PSA[,u5hhc.l:=NULL]; PSA[,u5hhc.sdl:=NULL]; PSO[,o5hhc.l:=NULL]; PSO[,o5hhc.sdl:=NULL];
-## names(PSA)[5:6] <- names(PSO)[5:6] <- c('hhc','hhc.sd')
-## PSA <- rbind(PSA,PSO)
-## rm(PSO)
-## PSA[,hiv:=0]
-## PSA[,art:=0]
-
-
-## ==== join
-## ditch BCG coverage by age now
-## PSA[,a1:=NULL];PSA[,a2:=NULL];PSA[,a3:=NULL];PSA[,a4:=NULL];PSA[,a5:=NULL];
-## PSA[,a6:=NULL];PSA[,a7:=NULL];PSA[,a8:=NULL];PSA[,a9:=NULL];PSA[,a10:=NULL];
-## PSA[,a11:=NULL];PSA[,a12:=NULL];PSA[,a13:=NULL];PSA[,a14:=NULL];PSA[,a15:=NULL];
-## PSA[,cdr04:=NULL]; PSA[,cdr04ab:=NULL]; PSA[,cdr514:=NULL]; PSA[,cdr514ab:=NULL];
-## PSA[,u5hhc.l:=NULL]; PSA[,u5hhc.sdl:=NULL]; PSA[,o5hhc.l:=NULL]; PSA[,o5hhc.sdl:=NULL];
-
 ## tidying
 PSA[,c(paste0('a',1:15)):=NULL]
 PSA[,c('cdr04','cdr04ab','cdr514','cdr514ab'):=NULL]
@@ -150,8 +87,7 @@ PSA[,c('u5hhc.l','u5hhc.sdl','o5hhc.l','o5hhc.sdl','u5hhc','u5hhc.sd','o5hhc','o
 PSA[,c('az','cm','cab'):=NULL]
 
 
-## TODO include hhc variance
-## TODO currently missing hhc
+
 
 ## ========================================
 ## ------ tree model calculations
@@ -169,18 +105,9 @@ PSA$e.IPT <- F$IPTfun(PSA)
 PSA$e.LTBI <- F$LTBIfun(PSA)
 PSA$e.ATTprev <- F$ATTprevfun(PSA)
 
-## ## testing
-## PSA[hiv==0,summary(e.incidence)]
-## PSA[hiv==1 & art==0,summary(e.incidence)]
-## PSA[hiv==1 & art==1,summary(e.incidence)]
-
-## PSA[hiv==0,summary(e.deaths)]
-## PSA[hiv==1 & art==0,summary(e.deaths)]
-## PSA[hiv==1 & art==1,summary(e.deaths)]
-
 
 ## multiply by number of children
-## TODO attention to HIV/ART
+## TODO include hhc variance
 PSA[,ehhc:=hhc]                         #TODO change to stochastic
 ## HIV splits
 load('data/DL.Rdata')
@@ -195,7 +122,7 @@ nest <- length(ests)
 
 PSA[,c(ests):=lapply(.SD,function(x) x*ehhc),.SDcols=ests] # needing to be: x HHC
 ## add this and visits to ests list to deal with generically
-PSA[,e.hhc:=hhc]          #HH contacts join into things dealt with generically
+PSA[,e.hhc:=ehhc]          #HH contacts join into things dealt with generically
 load('data/HHV.Rdata')    #visit (notification) data
 PSA <- merge(PSA,HHV[,.(iso3,e.households=visits)],all.x = TRUE) #merge visits in
 PSA[acat==unique(acat)[1],e.households:=0]                       #avoid double counting
@@ -245,7 +172,7 @@ PSAAm <- PSAA[,lapply(.SD,mean),by=.(intervention,acat),.SDcols=ests]
 intl <- c("No intervention","Under 5 & HIV+ve","Under 5 & HIV+ve & LTBI+","B-A","C-A")
 varlv <- ests[c(10,9,7,1,8,5,6,2,3,4)]  #reorder
 nint <- length(intl)
-hhrpl <- PSA[repn==1 & acat=="[5,15)" & intervention==unique(intervention)[2],sum(e.households)] #the non zero value
+hhrpl <- PSA[repn==1 & acat=="[5,15)" & hiv==0 & intervention==unique(intervention)[2],sum(e.households)] #the non zero value
 
 ## global
 RTg <- melt(PSAGm,id='intervention')
@@ -295,6 +222,7 @@ myft
 
 fwrite(RT,file='tables/RT.csv')
 
+## TODO ditch some variables and add uncertainty
 ## simpler output for main article
 RTS <- RT[,.(intervention,variable,Global,`[0,5)`,`[5,15)`)]
 names(RTS)[2] <- 'quantity'
@@ -306,7 +234,6 @@ tmp <- RTS[,lapply(.SD,pp),.SDcols=3:ncol(RTS)]
 tmp <- cbind(RTS[,2:1,with=FALSE],tmp)
 myft2 <- regulartable(tmp)
 myft2 <- merge_v(myft2, j = c("variable","quantity") )
-## myft <- autofit(myft)
 myft2
 
 
@@ -350,7 +277,6 @@ ggplot(data=RTM[!grepl('-A',intervention) &
 ## write.csv(PSARg,file='tables/globaloutput.csv')
 
 ## TODO
-## HIV functions
 ## document assumptions esp CDR
 ## CY compare
 ## uncertainty
