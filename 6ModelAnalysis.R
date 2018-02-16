@@ -3,7 +3,8 @@
 ## Once installed, these do not need separate loading as they are loaded when file 3 is
 ## sourced below. Outputs are sent to tables/
 rm(list=ls())                           #clear
-## next 4 for formatting & outputs
+
+## next libraries and functions are formatting & outputs
 library(officer)
 library(magrittr)
 library(flextable)
@@ -17,6 +18,7 @@ lq <- function(x)quantile(x,.25)
 source('3ModelDefn.R')    #load the decision tree model logic/definition
 source('4ModelFuns.R')    #function defns for decision tree (and distribution parameters)
 
+## NB PSA ~ 1G of memory with 1e3 replicates
 nrep <- 1e2                             #number of reps for PSA
 ## ======= children 0-4
 load('data/DLC.Rdata')                  #parent data for children 0-4
@@ -37,8 +39,6 @@ PSO[,cm:=cdr514]
 PSO[,cab:=cdr514ab]
 PSO[,acat:="[5,15)"]                     #age group
 ## join these
-names(PSA)
-names(PSO)
 PSA <- rbind(PSA,PSO,fill=TRUE)
 rm(PSO)
 ## HIV copies of this data
@@ -71,7 +71,6 @@ PSA[,progn.LN.PTp:=progn.LN.PTn*IPTrr]  #TB incidence in LTBI -ve PT+ve
 PSA[,PTcov.N:=0]                        #coverage of PT in LTBI -ve
 PSA[,PTcov.P:=0]                        #coverage of PT in LTBI +ve
 
-
 ## intervention set
 npsa <- nrow(PSA)
 PSA <- PSA[rep(1:npsa,3),]              #replicates by intervention
@@ -85,16 +84,13 @@ PSA[acat=="[5,15)" & hiv==1 & intervention!='No intervention',PTcov.N:=1] #IPT o
 PSA[acat=="[5,15)" & hiv==1 & intervention!='No intervention',PTcov.P:=1] #IPT o5s HIV+
 PSA[acat=="[5,15)" & intervention=='Under 5 & HIV+ve & LTBI+',PTcov.P:=1] #IPT for o5s L+
 
-
 ## tidying
 PSA[,c(paste0('a',1:15)):=NULL]
 PSA[,c('cdr04','cdr04ab','cdr514','cdr514ab'):=NULL]
-PSA[acat=="[0,5)",hhc:=u5hhc]; PSA[acat=="[0,5)",hhc.sd:=u5hhc.sd]
-PSA[acat=="[5,15)",hhc:=o5hhc]; PSA[acat=="[5,15)",hhc.sd:=o5hhc.sd]
+## PSA[acat=="[0,5)",hhc:=u5hhc]; PSA[acat=="[0,5)",hhc.sd:=u5hhc.sd]
+## PSA[acat=="[5,15)",hhc:=o5hhc]; PSA[acat=="[5,15)",hhc.sd:=o5hhc.sd]
 PSA[,c('u5hhc.l','u5hhc.sdl','o5hhc.l','o5hhc.sdl','u5hhc','u5hhc.sd','o5hhc','o5hhc.sd'):=NULL]
 PSA[,c('az','cm','cab'):=NULL]
-
-
 
 
 ## ========================================
@@ -113,11 +109,15 @@ PSA$e.IPT <- F$IPTfun(PSA)
 PSA$e.LTBI <- F$LTBIfun(PSA)
 PSA$e.ATTprev <- F$ATTprevfun(PSA)
 
-
-## multiply by number of children
-## TODO include hhc variance
-PSA[,ehhc:=hhc]                         #TODO change to stochastic
-## HIV splits
+## estimates of HHC
+HHC <- DLC[rep(1:nrow(DLC),nrep),.(iso3,mu=u5hhc.l,sdl=u5hhc.sdl)]   #data frame of hhc
+HHC[,repn:=rep(1:nrep,each=nrow(DLO))]; HHC[,acat:="[0,5)"]
+HHC2 <- DLO[rep(1:nrow(DLO),nrep),.(iso3,mu=o5hhc.l,sdl=o5hhc.sdl)]   #data frame of hhc
+HHC2[,repn:=rep(1:nrep,each=nrow(DLO))]; HHC2[,acat:="[5,15)"]
+HHC <- rbind(HHC,HHC2); rm(HHC2); HHC[!is.finite(sdl),sdl:=1]
+HHC[,ehhc:=rlnorm(nrow(HHC),mu,sdl)]; HHC[,c('mu','sdl'):=NULL]
+PSA <- merge(PSA,HHC,all.x=TRUE)        #merge in
+## HIV splits of hhc
 load('data/DL.Rdata')
 HIV <- unique(DL[,.(iso3,hivprop,artprop)])
 PSA <- merge(PSA,HIV,by='iso3',all.x=TRUE)
@@ -127,22 +127,17 @@ PSA[hiv==1 & art==1,ehhc:=ehhc*hivprop*artprop]
 PSA[,c('hivprop','artprop'):=NULL]
 ests <- grep('e\\.',names(PSA),value=TRUE)
 nest <- length(ests)
-
+## multiply by number of children
 PSA[,c(ests):=lapply(.SD,function(x) x*ehhc),.SDcols=ests] # needing to be: x HHC
 ## add this and visits to ests list to deal with generically
 PSA[,e.hhc:=ehhc]          #HH contacts join into things dealt with generically
 PSA[!grepl('5|-A',intervention),e.hhc:=0] #no intervention
 load('data/HHV.Rdata')    #visit (notification) data
 PSA <- merge(PSA,HHV[,.(iso3,e.households=visits)],all.x = TRUE) #merge visits in
-PSA[acat==unique(acat)[1],e.households:=0]                       #avoid double counting
 PSA[!grepl('5',intervention),e.households:=0]                    #no visits
-PSA[acat=='[0,5)',e.households:=PSA[acat=='[5,15)',e.households]] #add for younger
 PSA[,e.households:=e.households/6] # avoid x6 need x2 for age split
 ests <- grep('e\\.',names(PSA),value=TRUE)                       #regrab things to est
 nest <- length(ests)
-
-
-## ## TODO IPT read more
 
 ## ==== full results table ===
 ## global/regional/age
@@ -241,12 +236,6 @@ RTaD <- melt(PSAAs,id=c('intervention','acat'))
 RTaD <- dcast(RTaD,intervention + variable ~ acat,value='value')
 names(RTaD)[3:4] <- c('sy','so')
 
-## ## NNx TODO redo
-## x <- RT[intervention=='B-A',Global]
-## (ba <- c(hhn=-x[1]/x[6],hcn=-x[2]/x[6],ptn=-x[3]/x[6],txn=-x[4]/x[6]))
-## x <- RT[intervention=='C-A',Global]
-## (ca <- c(hhn=-x[1]/x[6],hcn=-x[2]/x[6],ptn=-x[3]/x[6],txn=-x[4]/x[6]))
-
 
 ## == formatting & output
 ## country-level output for supplementary
@@ -266,7 +255,6 @@ PSACm <- merge(PSACm,HHV[,.(iso3,household.visits=visits)],by='iso3',all.x = TRU
 PSACm[!grepl('5',intervention),household.visits:=0]                    #no visits
 PSACm <- PSACm[,c(names(PSACm)[1:2],sort(names(PSACm)[3:ncol(PSACm)])),with=FALSE]
 fwrite(PSACm,file='tables/country_output.csv')
-
 
 ## regional etc
 RTL <- merge(RT,RTD)
@@ -294,14 +282,14 @@ myft
 save(RTL,file='tables/RTL.Rdata')
 read_docx() %>%
   body_add_par(value = "Global, regional and age outputs", style = "heading 1") %>%
-  body_add_flextable(value = myft2) %>%
+  body_add_flextable(value = myft) %>%
   body_end_section(continuous = FALSE, landscape = TRUE) %>% 
   print(target = "tables/RTL.docx") %>% 
     invisible()
 
-
 ## simpler output for main article
-RTS <- merge(RT,RTU,by=c('intervention','variable'))
+RTS <- merge(RT[,.(intervention,variable,Global,`[0,5)`,`[5,15)`)],
+             RTU,by=c('intervention','variable'))
 RTS <- merge(RTS,RTaU,by=c('intervention','variable'))
 RTS[,Global:=paste0(pps(Global,sf=4),'\n',u)]
 RTS[,`[0,5)`:=paste0(pps(`[0,5)`,sf=4),'\n',ay)]
@@ -323,38 +311,17 @@ myft2
 save(RTS,file='tables/RTS.Rdata')
 read_docx() %>%
   body_add_par(value = "Global and age outputs", style = "heading 1") %>%
-  ## body_add_table(value = myft, style = "table_template" ) %>%
   body_add_flextable(value = myft2) %>%
   body_end_section(continuous = FALSE, landscape = TRUE) %>% 
   print(target = "tables/RTS.docx") %>% 
     invisible()
 
-## ## graph expts
-## names(RT)[2] <- 'quantity'
-## RTM <- melt(RT,id.vars = c('intervention','quantity'))
-
-## ggplot(data=RTM[!grepl('-A',intervention) &
-##                 quantity %in% c('e.ATT','e.IPT','e.incidence','e.deaths','e.LE') &
-##                 variable %in% c('AFR','EUR','WPR','SEA','WPO','AMR')],
-##        aes(x=variable,y=value,fill=intervention)) +
-##   geom_bar(stat='identity',position='dodge') + 
-##   coord_flip() + facet_wrap(~quantity,scales = 'free_x')
-
-## ## or col by region:
-## ggplot(data=RTM[!grepl('-A',intervention) &
-##                 quantity %in% c('e.ATT','e.IPT','e.incidence','e.deaths','e.LE') &
-##                 variable %in% c('AFR','EUR','WPR','SEA','WPO','AMR')],
-##        aes(x=intervention,y=value,fill=variable)) +
-##   geom_bar(stat='identity',position='dodge') + 
-##   coord_flip() + facet_wrap(~quantity,scales = 'free_x')
-
-
-## all country output too
 
 ## TODO
 ## document assumptions esp CDR
 ## CY compare
-## hh uncertainty
 ## CHECK CDR for incident cases?
+## IPT read more
 ## consider different TST for HIV+
 ## consider different LE for HIV
+## NNT & graph
