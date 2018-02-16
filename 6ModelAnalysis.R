@@ -1,4 +1,7 @@
-## see end file TODO 
+## This file is the modelling analysis. In addition to the libraries at the top of
+## this file, the HEdtree and data.table libraries are needed (see the top of file 3).
+## Once installed, these do not need separate loading as they are loaded when file 3 is
+## sourced below. Outputs are sent to tables/
 rm(list=ls())                           #clear
 ## next 4 for formatting & outputs
 library(officer)
@@ -175,6 +178,8 @@ PSAA <- rbind(PSAA,tmp1,tmp)
 PSAGm <- PSAG[,lapply(.SD,mean),by=.(intervention),.SDcols=ests]
 PSARm <- PSAR[,lapply(.SD,mean),by=.(intervention,g_whoregion),.SDcols=ests]
 PSAAm <- PSAA[,lapply(.SD,mean),by=.(intervention,acat),.SDcols=ests]
+PSACAm <- PSA[,lapply(.SD,mean),by=.(intervention,iso3,acat),.SDcols=ests]
+PSACm <- PSA[,lapply(.SD,mean),by=.(intervention,iso3),.SDcols=ests]
 ## sds
 PSAGs <- PSAG[,lapply(.SD,sd),by=.(intervention),.SDcols=ests]
 PSARs <- PSAR[,lapply(.SD,sd),by=.(intervention,g_whoregion),.SDcols=ests]
@@ -184,7 +189,10 @@ PSAGh <- PSAG[,lapply(.SD,uq),by=.(intervention),.SDcols=ests]
 PSAAh <- PSAA[,lapply(.SD,uq),by=.(intervention,acat),.SDcols=ests]
 PSAGl <- PSAG[,lapply(.SD,lq),by=.(intervention),.SDcols=ests]
 PSAAl <- PSAA[,lapply(.SD,lq),by=.(intervention,acat),.SDcols=ests]
-
+PSACAl <- PSA[,lapply(.SD,lq),by=.(intervention,iso3,acat),.SDcols=ests]
+PSACl <- PSA[,lapply(.SD,lq),by=.(intervention,iso3),.SDcols=ests]
+PSACAh <- PSA[,lapply(.SD,uq),by=.(intervention,iso3,acat),.SDcols=ests]
+PSACh <- PSA[,lapply(.SD,uq),by=.(intervention,iso3),.SDcols=ests]
 
 ## == gathering
 intl <- c("No intervention","Under 5 & HIV+ve","Under 5 & HIV+ve & LTBI+","B-A","C-A")
@@ -224,6 +232,14 @@ RTaU[,u:=ppb(lo,hi,sf=4)]
 RTaU <- dcast(RTaU,intervention+variable ~ acat,value.var = 'u')
 names(RTaU)[3:4] <- c('ay','ao')
 
+## sds for all
+RTD <- melt(PSAGs,id='intervention'); names(RTD)[3] <- 'gsdev'
+RTrD <- melt(PSARs,id=c('intervention','g_whoregion'))
+RTrD <- dcast(RTrD,intervention + variable ~ g_whoregion,value='value')
+names(RTrD)[3:ncol(RTrD)] <- paste0('s.',names(RTrD)[3:ncol(RTrD)])
+RTaD <- melt(PSAAs,id=c('intervention','acat'))
+RTaD <- dcast(RTaD,intervention + variable ~ acat,value='value')
+names(RTaD)[3:4] <- c('sy','so')
 
 ## ## NNx TODO redo
 ## x <- RT[intervention=='B-A',Global]
@@ -233,30 +249,59 @@ names(RTaU)[3:4] <- c('ay','ao')
 
 
 ## == formatting & output
-## formats
-## whoz <- !RT$variable %in% c('e.ATTprev')
-## tmp <- RT[whoz,lapply(.SD,pp),.SDcols=3:ncol(RT)]
-## tmp <- cbind(RT[whoz,1:2,with=FALSE],tmp)
-## intz <- as.character(tmp$intervention)
-## uintz <- unique(intz)
-## intz[intz==uintz[1]] <- paste0('A: ',intz[intz==uintz[1]])
-## intz[intz==uintz[2]] <- paste0('B: ',intz[intz==uintz[2]])
-## intz[intz==uintz[3]] <- paste0('C: ',intz[intz==uintz[3]])
-## tmp$intervention <- factor(intz)
-## myft <- regulartable(tmp)
-## myft <- merge_v(myft, j = c("intervention", "variable") )
-## ## myft <- autofit(myft)
-## myft
+## country-level output for supplementary
+## by age too
+names(PSACAh)[4:ncol(PSACAh)] <- paste0(names(PSACAh)[4:ncol(PSACAh)],'.hi')
+names(PSACAl)[4:ncol(PSACAh)] <- paste0(names(PSACAl)[4:ncol(PSACAh)],'.lo')
+PSACAm <- merge(PSACAm,PSACAh);PSACAm <- merge(PSACAm,PSACAl); rm(PSACAl,PSACAh)
+PSACAm <- PSACAm[,c(names(PSACAm)[1:3],sort(names(PSACAm)[4:ncol(PSACAm)])),with=FALSE]
+PSACAm[,c(grep('house',names(PSACAm),value=TRUE)):=NULL]
+fwrite(PSACAm,file='tables/country_age_output.csv')
+## just by country
+names(PSACh)[3:ncol(PSACh)] <- paste0(names(PSACh)[3:ncol(PSACh)],'.hi')
+names(PSACl)[3:ncol(PSACh)] <- paste0(names(PSACl)[3:ncol(PSACh)],'.lo')
+PSACm <- merge(PSACm,PSACh);PSACm <- merge(PSACm,PSACl); rm(PSACl,PSACh)
+PSACm[,c(grep('house',names(PSACm),value=TRUE)):=NULL]
+PSACm <- merge(PSACm,HHV[,.(iso3,household.visits=visits)],by='iso3',all.x = TRUE)
+PSACm[!grepl('5',intervention),household.visits:=0]                    #no visits
+PSACm <- PSACm[,c(names(PSACm)[1:2],sort(names(PSACm)[3:ncol(PSACm)])),with=FALSE]
+fwrite(PSACm,file='tables/country_output.csv')
 
 
-## fwrite(RT,file='tables/RT.csv')
+## regional etc
+RTL <- merge(RT,RTD)
+RTL <- merge(RTL,RTaD)
+RTL <- merge(RTL,RTrD)
+whoz <- !RTL$variable %in% c('e.ATTprev')
+RTL <- RTL[whoz]
+RTL[,Global:=paste0(pps(Global,sf=4),'\n(',pps(gsdev,sf=4),')')]; RTL[,gsdev:=NULL]
+regz <- PSA[,unique(g_whoregion)]; regzsd <- paste0('s.',regz)
+for(i in seq_along(regz)){
+  a <- RTL[,regz[i],with=FALSE]; b <- RTL[,regzsd[i],with=FALSE]
+  RTL[,c(regz[i]):=paste0(pps(a,sf=4),'\n(',pps(b,sf=4),')')]
+  RTL[,c(regzsd[i]):=NULL]
+}
+RTL[,`[0,5)`:=paste0(pps(`[0,5)`,sf=4),'\n(',pps(sy,sf=4),')')]; RTL[,sy:=NULL]
+RTL[,`[5,15)`:=paste0(pps(`[5,15)`,sf=4),'\n(',pps(so,sf=4),')')]; RTL[,so:=NULL]
+intz <- c(unique(PSA$intervention),'B-A','C-A')
+RTL$intervention <- factor(RTL$intervention,levels=intz,ordered=TRUE)
+RTL <- RTL[order(as.integer(intervention),variable),]
+myft <- regulartable(RTL)
+myft <- merge_v(myft, j = c("intervention", "variable") )
+myft
+
+## saving
+save(RTL,file='tables/RTL.Rdata')
+read_docx() %>%
+  body_add_par(value = "Global, regional and age outputs", style = "heading 1") %>%
+  body_add_flextable(value = myft2) %>%
+  body_end_section(continuous = FALSE, landscape = TRUE) %>% 
+  print(target = "tables/RTL.docx") %>% 
+    invisible()
 
 
-
-## TODO ditch some variables and add uncertainty
 ## simpler output for main article
-RTS <- RT[,.(intervention,variable,Global,`[0,5)`,`[5,15)`)]
-RTS <- merge(RTS,RTU,by=c('intervention','variable'))
+RTS <- merge(RT,RTU,by=c('intervention','variable'))
 RTS <- merge(RTS,RTaU,by=c('intervention','variable'))
 RTS[,Global:=paste0(pps(Global,sf=4),'\n',u)]
 RTS[,`[0,5)`:=paste0(pps(`[0,5)`,sf=4),'\n',ay)]
@@ -274,7 +319,8 @@ myft2 <- regulartable(RTS)
 myft2 <- merge_v(myft2, j = c("variable","quantity") )
 myft2
 
-
+## saving
+save(RTS,file='tables/RTS.Rdata')
 read_docx() %>%
   body_add_par(value = "Global and age outputs", style = "heading 1") %>%
   ## body_add_table(value = myft, style = "table_template" ) %>%
@@ -283,16 +329,16 @@ read_docx() %>%
   print(target = "tables/RTS.docx") %>% 
     invisible()
 
-## graph expts
-names(RT)[2] <- 'quantity'
-RTM <- melt(RT,id.vars = c('intervention','quantity'))
+## ## graph expts
+## names(RT)[2] <- 'quantity'
+## RTM <- melt(RT,id.vars = c('intervention','quantity'))
 
-ggplot(data=RTM[!grepl('-A',intervention) &
-                quantity %in% c('e.ATT','e.IPT','e.incidence','e.deaths','e.LE') &
-                variable %in% c('AFR','EUR','WPR','SEA','WPO','AMR')],
-       aes(x=variable,y=value,fill=intervention)) +
-  geom_bar(stat='identity',position='dodge') + 
-  coord_flip() + facet_wrap(~quantity,scales = 'free_x')
+## ggplot(data=RTM[!grepl('-A',intervention) &
+##                 quantity %in% c('e.ATT','e.IPT','e.incidence','e.deaths','e.LE') &
+##                 variable %in% c('AFR','EUR','WPR','SEA','WPO','AMR')],
+##        aes(x=variable,y=value,fill=intervention)) +
+##   geom_bar(stat='identity',position='dodge') + 
+##   coord_flip() + facet_wrap(~quantity,scales = 'free_x')
 
 ## ## or col by region:
 ## ggplot(data=RTM[!grepl('-A',intervention) &
@@ -305,19 +351,9 @@ ggplot(data=RTM[!grepl('-A',intervention) &
 
 ## all country output too
 
-## ## writing out
-## read_docx() %>%
-##   body_add_par(value = "Global output table", style = "heading 1") %>%
-##   body_add_table(value = PSARg, style = "table_template" ) %>%
-##   print(target = "tables/globaloutput.docx") %>% 
-##     invisible()
-
-## write.csv(PSARg,file='tables/globaloutput.csv')
-
 ## TODO
 ## document assumptions esp CDR
 ## CY compare
-## uncertainty
 ## hh uncertainty
 ## CHECK CDR for incident cases?
 ## consider different TST for HIV+

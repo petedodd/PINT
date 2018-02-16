@@ -1,20 +1,19 @@
-## TODO
-## edit & check can be sourced
+## This file defines the logic of the decision tree model and loads the relevant
+## packages (see next para of comments). The functions the model neeeds to run
+## are defined in file 4. This file can be sourced, although various test
+## visualisations of the tree will print to console.
+## To check the tree in a web browser use:
+## plotter(kexp, varz=c('name','check'), edgelabel = TRUE)
+## once constructed. 'check' is set to 1 for all leaves to check the associated
+## function for the tree. Change this to one of the other variables computed for
+## more general checking.
 
-## before first use, the relevant packages need to be installed.
-## In R, install data.tree using command:
-## 
+## Requirements: data.tree and HEdtree packages.
 ## install.packages('data.tree')
-## 
-## install devtools using command:
-## 
-## install.packages('devtools')
-## 
-## and then HEdtree using command:
-## 
+## should install data.tree.
+## HEdtree can be installed by first installing devtools as above,
+## and then calling:
 ## devtools::install_github('petedodd/HEdtree',dependencies=FALSE,build_vignettes=TRUE)
-## 
-## then all the following ought to work...
 
 library(HEdtree)
 library(data.tree)

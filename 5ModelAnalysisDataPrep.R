@@ -1,9 +1,8 @@
-## TODO
-## - HIV model & data
+## This file prepares the final data files needed in the modelling analysis in file 6
+## i.e. in order to build the parent data.table for the PSA
+## NB the first statement wipes all data so be careful when applied!
 
-## making parent data for PSAs
 rm(list=ls())
-
 
 ## ================ initial data pooling ===========
 ## NB to save file space, the publicly available datasets in this section have not been included in the repo:

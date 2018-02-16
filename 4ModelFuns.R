@@ -1,14 +1,13 @@
-## TODO
-## remove most sanity checks so can be sourced
-## think LHS
-## source("3ModelDefn.R")
+## This file reads in the parameters for the model, constructs all the
+## necessary distributions and defines the functions that are needed in the
+## decision tree. This file can be sourced after file 3 and is a
+## prerequisite for the analysis in file 6
 
-## read in data
+## read in data & build distributions (second version with automatic test output)
 PZ <- parse.parmtable(data = read.csv('data/PTBHHCT.csv')) #no test
 ## PZ <- parse.parmtable(data = read.csv('data/PTBHHCT.csv'), #test!
 ##                       outfile='test/zzout.csv',testdir = 'test')
-
-names(PZ)
+names(PZ)                               #check what we've got
 
 
 ## =========== function definitions ===============
