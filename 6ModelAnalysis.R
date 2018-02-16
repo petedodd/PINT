@@ -5,6 +5,11 @@ library(officer)
 library(magrittr)
 library(flextable)
 pp <- function(x,sf=3,ns=0) format(signif(round(x),sf), nsmall=ns, big.mark=",",scientific = FALSE)
+pps <- function(x,...) gsub("^\\s+|\\s+$", "", pp(x,...))
+ppb <- function(x,y,...) paste0('(',pps(x,...),' \u2013 ',pps(y,...),')')
+uq <- function(x)quantile(x,.75)
+lq <- function(x)quantile(x,.25)
+
 ## load decision tree model and functions
 source('3ModelDefn.R')    #load the decision tree model logic/definition
 source('4ModelFuns.R')    #function defns for decision tree (and distribution parameters)
@@ -123,10 +128,13 @@ nest <- length(ests)
 PSA[,c(ests):=lapply(.SD,function(x) x*ehhc),.SDcols=ests] # needing to be: x HHC
 ## add this and visits to ests list to deal with generically
 PSA[,e.hhc:=ehhc]          #HH contacts join into things dealt with generically
+PSA[!grepl('5|-A',intervention),e.hhc:=0] #no intervention
 load('data/HHV.Rdata')    #visit (notification) data
 PSA <- merge(PSA,HHV[,.(iso3,e.households=visits)],all.x = TRUE) #merge visits in
 PSA[acat==unique(acat)[1],e.households:=0]                       #avoid double counting
 PSA[!grepl('5',intervention),e.households:=0]                    #no visits
+PSA[acat=='[0,5)',e.households:=PSA[acat=='[5,15)',e.households]] #add for younger
+PSA[,e.households:=e.households/6] # avoid x6 need x2 for age split
 ests <- grep('e\\.',names(PSA),value=TRUE)                       #regrab things to est
 nest <- length(ests)
 
@@ -138,6 +146,7 @@ nest <- length(ests)
 PSAG <- PSA[,lapply(.SD,sum),by=.(repn,intervention),.SDcols=ests]
 PSAR <- PSA[,lapply(.SD,sum),by=.(repn,intervention,g_whoregion),.SDcols=ests]
 PSAA <- PSA[,lapply(.SD,sum),by=.(repn,intervention,acat),.SDcols=ests]
+PSAA[,e.households:=e.households*2]     #same for each age cat really
 
 ## == diffs
 ## global
@@ -162,11 +171,20 @@ tmp[,intervention:='C-A']
 PSAA <- rbind(PSAA,tmp1,tmp)
 
 ## == summary
+## means
 PSAGm <- PSAG[,lapply(.SD,mean),by=.(intervention),.SDcols=ests]
 PSARm <- PSAR[,lapply(.SD,mean),by=.(intervention,g_whoregion),.SDcols=ests]
 PSAAm <- PSAA[,lapply(.SD,mean),by=.(intervention,acat),.SDcols=ests]
+## sds
+PSAGs <- PSAG[,lapply(.SD,sd),by=.(intervention),.SDcols=ests]
+PSARs <- PSAR[,lapply(.SD,sd),by=.(intervention,g_whoregion),.SDcols=ests]
+PSAAs <- PSAA[,lapply(.SD,sd),by=.(intervention,acat),.SDcols=ests]
+## IQRs
+PSAGh <- PSAG[,lapply(.SD,uq),by=.(intervention),.SDcols=ests]
+PSAAh <- PSAA[,lapply(.SD,uq),by=.(intervention,acat),.SDcols=ests]
+PSAGl <- PSAG[,lapply(.SD,lq),by=.(intervention),.SDcols=ests]
+PSAAl <- PSAA[,lapply(.SD,lq),by=.(intervention,acat),.SDcols=ests]
 
-## TODO uncertainty measures here
 
 ## == gathering
 intl <- c("No intervention","Under 5 & HIV+ve","Under 5 & HIV+ve & LTBI+","B-A","C-A")
@@ -191,10 +209,21 @@ RTg <- RTg[order(intervention,variable),]; RTr <- RTr[order(intervention,variabl
 names(RTg)[3] <- 'Global'
 RT <- cbind(RTg,RTr[,-c(1:2),with=FALSE],RTa[,-c(1:2),with=FALSE])
 
-## intervention-related values for hhc & hh visits
-RT[!grepl('5|-A',intervention) & variable=='e.hhc',(3:ncol(RT)):=0] #only for B & C
-RT[grepl('5|-A',intervention) & variable=='e.households',(3:ncol(RT)):=hhrpl]
-RT[!grepl('5|-A',intervention) & variable=='e.households',(3:ncol(RT)):=0]
+## --- uncertainty
+RTH <- melt(PSAGh,id='intervention'); names(RTH)[3] <- 'hi'
+RTL <- melt(PSAGl,id='intervention'); names(RTL)[3] <- 'lo'
+RTU <- merge(RTL,RTH); rm(RTH,RTL)
+RTU[,u:=ppb(lo,hi,sf=4)]
+RTU[,c('lo','hi'):=NULL]
+
+## age
+RTah <- melt(PSAAh,id=c('intervention','acat')); names(RTah)[4] <- 'hi'
+RTal <- melt(PSAAl,id=c('intervention','acat')); names(RTal)[4] <- 'lo'
+RTaU <- merge(RTal,RTah); rm(RTah,RTal)
+RTaU[,u:=ppb(lo,hi,sf=4)]
+RTaU <- dcast(RTaU,intervention+variable ~ acat,value.var = 'u')
+names(RTaU)[3:4] <- c('ay','ao')
+
 
 ## ## NNx TODO redo
 ## x <- RT[intervention=='B-A',Global]
@@ -205,34 +234,43 @@ RT[!grepl('5|-A',intervention) & variable=='e.households',(3:ncol(RT)):=0]
 
 ## == formatting & output
 ## formats
-whoz <- !RT$variable %in% c('e.ATTprev')
-tmp <- RT[whoz,lapply(.SD,pp),.SDcols=3:ncol(RT)]
-tmp <- cbind(RT[whoz,1:2,with=FALSE],tmp)
-intz <- as.character(tmp$intervention)
-uintz <- unique(intz)
-intz[intz==uintz[1]] <- paste0('A: ',intz[intz==uintz[1]])
-intz[intz==uintz[2]] <- paste0('B: ',intz[intz==uintz[2]])
-intz[intz==uintz[3]] <- paste0('C: ',intz[intz==uintz[3]])
-tmp$intervention <- factor(intz)
-myft <- regulartable(tmp)
-myft <- merge_v(myft, j = c("intervention", "variable") )
-## myft <- autofit(myft)
-myft
+## whoz <- !RT$variable %in% c('e.ATTprev')
+## tmp <- RT[whoz,lapply(.SD,pp),.SDcols=3:ncol(RT)]
+## tmp <- cbind(RT[whoz,1:2,with=FALSE],tmp)
+## intz <- as.character(tmp$intervention)
+## uintz <- unique(intz)
+## intz[intz==uintz[1]] <- paste0('A: ',intz[intz==uintz[1]])
+## intz[intz==uintz[2]] <- paste0('B: ',intz[intz==uintz[2]])
+## intz[intz==uintz[3]] <- paste0('C: ',intz[intz==uintz[3]])
+## tmp$intervention <- factor(intz)
+## myft <- regulartable(tmp)
+## myft <- merge_v(myft, j = c("intervention", "variable") )
+## ## myft <- autofit(myft)
+## myft
 
 
-fwrite(RT,file='tables/RT.csv')
+## fwrite(RT,file='tables/RT.csv')
+
+
 
 ## TODO ditch some variables and add uncertainty
 ## simpler output for main article
 RTS <- RT[,.(intervention,variable,Global,`[0,5)`,`[5,15)`)]
+RTS <- merge(RTS,RTU,by=c('intervention','variable'))
+RTS <- merge(RTS,RTaU,by=c('intervention','variable'))
+RTS[,Global:=paste0(pps(Global,sf=4),'\n',u)]
+RTS[,`[0,5)`:=paste0(pps(`[0,5)`,sf=4),'\n',ay)]
+RTS[,`[5,15)`:=paste0(pps(`[5,15)`,sf=4),'\n',ao)]
+RTS[,c('u','ay','ao'):=NULL]
 names(RTS)[2] <- 'quantity'
 RTS <- melt(RTS,id.vars = c('intervention','quantity'))
 RTS <- dcast(RTS,quantity + variable ~ intervention,value.var = 'value')
 RTS$variable <- factor(RTS$variable,levels=c('[0,5)','[5,15)','Global'),ordered=TRUE)
 RTS <- RTS[order(variable,quantity),]
-tmp <- RTS[,lapply(.SD,pp),.SDcols=3:ncol(RTS)]
-tmp <- cbind(RTS[,2:1,with=FALSE],tmp)
-myft2 <- regulartable(tmp)
+RTS <- RTS[,.(quantity,variable,`No intervention`,`Under 5 & HIV+ve`,
+              `Under 5 & HIV+ve & LTBI+`,`B-A`,`C-A`)]
+RTS <- RTS[!quantity %in% c('e.LTBI','e.ATTprev','')]
+myft2 <- regulartable(RTS)
 myft2 <- merge_v(myft2, j = c("variable","quantity") )
 myft2
 
