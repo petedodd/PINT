@@ -316,12 +316,50 @@ read_docx() %>%
   print(target = "tables/RTS.docx") %>% 
     invisible()
 
+## == diffs
+## global
+tmp1 <- PSAG[,.SD[intervention=='Under 5 & HIV+ve'] - .SD[intervention=='No intervention'],.SDcols=3:(2+nest),by=repn]
+tmp1 <- tmp1[,.(`households visited`=-e.households/e.deaths,
+                `children screened`=-e.hhc/e.deaths,
+                `IPT courses`=-e.IPT/e.deaths,
+                `anti-TB treatments`=-e.ATT/e.deaths)]
+tmp1[,region:='Global']
+## regional
+tmp2 <- PSAR[,.SD[intervention=='Under 5 & HIV+ve'] - .SD[intervention=='No intervention'],.SDcols=4:(3+nest),by=.(repn,g_whoregion)]
+tmp2 <- tmp2[,.(region=g_whoregion,
+                `households visited`=-e.households/e.deaths,
+                `children screened`=-e.hhc/e.deaths,
+                `IPT courses`=-e.IPT/e.deaths,
+                `anti-TB treatments`=-e.ATT/e.deaths)]
+tmp <- rbind(tmp1,tmp2)
+tmpm <- tmp[,lapply(.SD,mean),.SDcols=1:4,by=region]
+tmpu <- tmp[,lapply(.SD,uq),.SDcols=1:4,by=region]
+tmpl <- tmp[,lapply(.SD,lq),.SDcols=1:4,by=region]
+tmpm[,measure:='mean']
+tmpu[,measure:='hi']
+tmpl[,measure:='lo']
+
+NNT <- rbind(tmpm,tmpu,tmpl)
+NNT <- melt(NNT,id.vars = c('region','measure'))
+NNT$region <- factor(NNT$region,levels=c('Global','AFR','AMR','EMR','EUR','SEA','WPR'),ordered=TRUE)
+NNT <- dcast(NNT,region + variable ~ measure)
+
+ggplot(NNT,aes(region,mean)) +
+  geom_bar(stat='identity',position = 'dodge') +
+  xlab('Additional units per TB deaths averted') + ylab('Number') +
+  facet_grid(.~variable)+theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  geom_errorbar(aes(ymin=lo,ymax=hi),col=2,width=0)
+
+ggsave('tables/NNT2.pdf',width=9)
+ggsave('tables/NNT2.png',width=9)
+
 
 ## TODO
+
 ## document assumptions esp CDR
 ## CY compare
 ## CHECK CDR for incident cases?
 ## IPT read more
 ## consider different TST for HIV+
 ## consider different LE for HIV
-## NNT & graph
+
