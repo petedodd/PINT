@@ -52,7 +52,8 @@ rm(PSAh,PSAa)
 ## compute variables for PSA data table
 PSA[,CDR:=CDR(cm,cab)]           #CDR
 PSA[,coprev:=coprev(az)]                #coprevalent TB
-PSA[,IPTrr:=IPTrr(az)]                  #IPT RR for incident TB
+PSA[,IPTrr:=IPTrr(az,hiv)]                  #IPT RR for incident TB, dep HIV
+PSA[,IPTrrLP:=IPTrrLP(az)]                  #IPT RR for incident TB, if TST+
 PSA[,ltbi.prev:=ltbi.prev(az,coprev)]   #LTBI prevalence
 PSA[,rrtst:=RRtst(az)]                  #RR for incidence if TST+ve
 PSA[,CFRtxY:=CFRtxY(az,hiv,art)]                #CFR on ATT
@@ -66,7 +67,7 @@ PSA[acat=="[5,15)",
 PSA[,inc:=ltbi.prev * pprogn]           #TB incidence, total
 PSA[,progn.LP.PTn:=pprogn*rrtst/(1+rrtst)] #TB incidence in LTBI +ve PT-ve
 PSA[,progn.LN.PTn:=pprogn*1/(1+rrtst)]     #TB incidence in LTBI -ve PT-ve
-PSA[,progn.LP.PTp:=progn.LP.PTn*IPTrr]  #TB incidence in LTBI +ve PT+ve
+PSA[,progn.LP.PTp:=progn.LP.PTn*IPTrrLP]  #TB incidence in LTBI +ve PT+ve
 PSA[,progn.LN.PTp:=progn.LN.PTn*IPTrr]  #TB incidence in LTBI -ve PT+ve
 PSA[,PTcov.N:=0]                        #coverage of PT in LTBI -ve
 PSA[,PTcov.P:=0]                        #coverage of PT in LTBI +ve
@@ -87,8 +88,6 @@ PSA[acat=="[5,15)" & intervention=='Under 5 & HIV+ve & LTBI+',PTcov.P:=1] #IPT f
 ## tidying
 PSA[,c(paste0('a',1:15)):=NULL]
 PSA[,c('cdr04','cdr04ab','cdr514','cdr514ab'):=NULL]
-## PSA[acat=="[0,5)",hhc:=u5hhc]; PSA[acat=="[0,5)",hhc.sd:=u5hhc.sd]
-## PSA[acat=="[5,15)",hhc:=o5hhc]; PSA[acat=="[5,15)",hhc.sd:=o5hhc.sd]
 PSA[,c('u5hhc.l','u5hhc.sdl','o5hhc.l','o5hhc.sdl','u5hhc','u5hhc.sd','o5hhc','o5hhc.sd'):=NULL]
 PSA[,c('az','cm','cab'):=NULL]
 
@@ -386,6 +385,5 @@ fwrite(htmp,file='tables/hiv_mort_region.txt')
 ## CY compare
 ## CHECK CDR for incident cases?
 ## IPT read more
-## consider different TST for HIV+
 ## consider different LE for HIV
 

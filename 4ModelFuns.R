@@ -186,8 +186,17 @@ RRtst <- function(a){
 ## RRtst(rep(1,10))
 
 ## === IPT efficacy
-IPTrr <- function(a){
-  PZ$iptRR$r(length(a))
+IPTrr <- function(a,hiv=0){
+  if(length(a)>1 & length(hiv)==1) hiv <- rep(hiv,length(a))
+  ans <- PZ$iptRR$r(length(a))
+  ans[hiv>0] <- PZ$iptRRhivpos$r(sum(hiv>0))  #HIV+
+  ans
 }
-## IPTrr(1:10)
+IPTrr(1:10)
+summary(IPTrr(runif(1e3),hiv=0))
+summary(IPTrr(runif(1e3),hiv=1))
 
+IPTrrLP <- function(a){
+  PZ$iptRRtstpos$r(length(a))
+}
+summary(IPTrrLP(runif(1e3)))
