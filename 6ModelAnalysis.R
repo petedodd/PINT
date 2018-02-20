@@ -116,15 +116,19 @@ HHC2 <- DLO[rep(1:nrow(DLO),nrep),.(iso3,mu=o5hhc.l,sdl=o5hhc.sdl)]   #data fram
 HHC2[,repn:=rep(1:nrep,each=nrow(DLO))]; HHC2[,acat:="[5,15)"]
 HHC <- rbind(HHC,HHC2); rm(HHC2); HHC[!is.finite(sdl),sdl:=1]
 HHC[,ehhc:=rlnorm(nrow(HHC),mu,sdl)]; HHC[,c('mu','sdl'):=NULL]
-PSA <- merge(PSA,HHC,all.x=TRUE)        #merge in
+
 ## HIV splits of hhc
 load('data/DL.Rdata')
 HIV <- unique(DL[,.(iso3,hivprop,artprop)])
-PSA <- merge(PSA,HIV,by='iso3',all.x=TRUE)
-PSA[hiv==0,ehhc:=ehhc*(1-hivprop)]
+HHC <- merge(HHC,HIV,by='iso3',all.x=TRUE)
+HHC[acat=="[0,5)", hivprop:=hivprop*PZ$HHhivprev04$r(nrow(HHC)/2)] #child infection risk
+HHC[acat=="[5,15)", hivprop:=hivprop*PZ$HHhivprev514$r(nrow(HHC)/2)]#child infection risk
+PSA <- merge(PSA,HHC,by=c('iso3','acat','repn'),all.x=TRUE)        #merge in
 PSA[hiv==1 & art==0,ehhc:=ehhc*hivprop*(1-artprop)]
 PSA[hiv==1 & art==1,ehhc:=ehhc*hivprop*artprop]
+PSA[hiv==0,ehhc:=ehhc*(1-hivprop)]
 PSA[,c('hivprop','artprop'):=NULL]
+
 ests <- grep('e\\.',names(PSA),value=TRUE)
 nest <- length(ests)
 ## multiply by number of children
@@ -133,7 +137,7 @@ PSA[,c(ests):=lapply(.SD,function(x) x*ehhc),.SDcols=ests] # needing to be: x HH
 PSA[,e.hhc:=ehhc]          #HH contacts join into things dealt with generically
 PSA[!grepl('5|-A',intervention),e.hhc:=0] #no intervention
 load('data/HHV.Rdata')    #visit (notification) data
-PSA <- merge(PSA,HHV[,.(iso3,e.households=visits)],all.x = TRUE) #merge visits in
+PSA <- merge(PSA,HHV[,.(iso3,e.households=visits)],by='iso3',all.x = TRUE) #merge visits in
 PSA[!grepl('5',intervention),e.households:=0]                    #no visits
 PSA[,e.households:=e.households/6] # avoid x6 need x2 for age split
 ests <- grep('e\\.',names(PSA),value=TRUE)                       #regrab things to est
@@ -347,11 +351,33 @@ NNT <- dcast(NNT,region + variable ~ measure)
 ggplot(NNT,aes(region,mean)) +
   geom_bar(stat='identity',position = 'dodge') +
   xlab('Additional units per TB deaths averted') + ylab('Number') +
-  facet_grid(.~variable)+theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  facet_grid(.~variable)+theme(axis.text.x = element_text(angle = 90)) +
   geom_errorbar(aes(ymin=lo,ymax=hi),col=2,width=0)
-
 ggsave('tables/NNT2.pdf',width=9)
 ggsave('tables/NNT2.png',width=9)
+
+## === HIV outputs
+## hhc
+(htmp <- PSA[intervention=='Under 5 & HIV+ve'][,.(inc=sum(e.hhc)),by=.(repn,hiv)][,.(h=.SD[hiv==1,inc]/.SD[,sum(inc)]),by=repn][,mean(h)])
+cat(htmp,file='tables/hiv_hhc.txt') 
+(htmp <- PSA[intervention=='Under 5 & HIV+ve'][,.(inc=sum(e.hhc)),by=.(repn,hiv,acat)][,.(h=.SD[hiv==1,inc]/.SD[,sum(inc)]),by=.(repn,acat)][,mean(h),by=acat])
+fwrite(htmp,file='tables/hiv_hhc_age.txt') 
+(htmp <- PSA[intervention=='Under 5 & HIV+ve'][,.(inc=sum(e.hhc)),by=.(repn,hiv,g_whoregion)][,.(h=.SD[hiv==1,inc]/.SD[,sum(inc)]),by=.(repn,g_whoregion)][,mean(h),by=g_whoregion])
+fwrite(htmp,file='tables/hiv_hhc_region.txt')
+## incidence
+(htmp <- PSA[intervention=='No intervention'][,.(inc=sum(e.incidence)),by=.(repn,hiv)][,.(h=.SD[hiv==1,inc]/.SD[,sum(inc)]),by=repn][,mean(h)])
+cat(htmp,file='tables/hiv_inc.txt')
+(htmp <- PSA[intervention=='No intervention'][,.(inc=sum(e.incidence)),by=.(repn,hiv,acat)][,.(h=.SD[hiv==1,inc]/.SD[,sum(inc)]),by=.(repn,acat)][,mean(h),by=acat])
+fwrite(htmp,file='tables/hiv_inc_age.txt')
+(htmp <- PSA[intervention=='No intervention'][,.(inc=sum(e.incidence)),by=.(repn,hiv,g_whoregion)][,.(h=.SD[hiv==1,inc]/.SD[,sum(inc)]),by=.(repn,g_whoregion)][,mean(h),by=g_whoregion])
+fwrite(htmp,file='tables/hiv_inc_region.txt')
+## deaths
+(htmp <- PSA[intervention=='No intervention'][,.(de=sum(e.deaths)),by=.(repn,hiv)][,.(h=.SD[hiv==1,de]/.SD[,sum(de)]),by=repn][,mean(h)])
+cat(htmp,file='tables/hiv_mort.txt')
+(htmp <- PSA[intervention=='No intervention'][,.(de=sum(e.deaths)),by=.(repn,hiv,acat)][,.(h=.SD[hiv==1,de]/.SD[,sum(de)]),by=.(repn,acat)][,mean(h),by=acat])
+fwrite(htmp,file='tables/hiv_mort_age.txt')
+(htmp <- PSA[intervention=='No intervention'][,.(de=sum(e.deaths)),by=.(repn,hiv,g_whoregion)][,.(h=.SD[hiv==1,de]/.SD[,sum(de)]),by=.(repn,g_whoregion)][,mean(h),by=g_whoregion])
+fwrite(htmp,file='tables/hiv_mort_region.txt')
 
 
 ## TODO
