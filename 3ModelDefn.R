@@ -173,3 +173,7 @@ kexp$Set(LTBI=1,filterFun=function(x) grepl("TST+",x$name) )
 kexp$Set(ATTprev=0)
 kexp$`Prevalent TB disease`$`TB disease outcomes`$`TB treatment`$Set(ATTprev=1,filterFun=function(x) !x$isLeaf)
 ## print(kexp,'ATTprev')
+
+## different CDR for prevalent
+kexp$`Prevalent TB disease`$`TB disease outcomes`$`TB treatment`$p <- "CDRp"
+kexp$`Prevalent TB disease`$`TB disease outcomes`$`no TB treatment`$p <- "1-CDRp"

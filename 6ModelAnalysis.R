@@ -51,6 +51,7 @@ rm(PSAh,PSAa)
 
 ## compute variables for PSA data table
 PSA[,CDR:=CDR(cm,cab)]           #CDR
+PSA[,CDRp:=CDR]                  #CDR in prevalent cases
 PSA[,coprev:=coprev(az)]                #coprevalent TB
 PSA[,IPTrr:=IPTrr(az,hiv)]                  #IPT RR for incident TB, dep HIV
 PSA[,IPTrrLP:=IPTrrLP(az)]                  #IPT RR for incident TB, if TST+
@@ -78,7 +79,7 @@ PSA <- PSA[rep(1:npsa,3),]              #replicates by intervention
 PSA[,intervention:=c(rep('No intervention',npsa),
                      rep('Under 5 & HIV+ve',npsa),
                      rep('Under 5 & HIV+ve & LTBI+',npsa))]
-PSA[intervention!='No intervention',CDR:=1] #screening
+PSA[intervention!='No intervention',CDRp:=1] #screening: change here to CDR for sense
 PSA[acat=="[0,5)" & intervention!='No intervention',PTcov.N:=1] #IPT for all under 5s
 PSA[acat=="[0,5)" & intervention!='No intervention',PTcov.P:=1] #IPT for all under 5s
 PSA[acat=="[5,15)" & hiv==1 & intervention!='No intervention',PTcov.N:=1] #IPT o5s HIV+
