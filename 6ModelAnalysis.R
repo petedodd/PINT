@@ -264,8 +264,8 @@ fwrite(PSACm,file='tables/country_output.csv')
 RTL <- merge(RT,RTD)
 RTL <- merge(RTL,RTaD)
 RTL <- merge(RTL,RTrD)
-whoz <- !RTL$variable %in% c('e.ATTprev')
-RTL <- RTL[whoz]
+## whoz <- !RTL$variable %in% c('e.ATTprev')
+## RTL <- RTL[whoz]
 RTL[,Global:=paste0(pps(Global,sf=4),'\n(',pps(gsdev,sf=4),')')]; RTL[,gsdev:=NULL]
 regz <- PSA[,unique(g_whoregion)]; regzsd <- paste0('s.',regz)
 for(i in seq_along(regz)){
@@ -306,7 +306,8 @@ RTS$variable <- factor(RTS$variable,levels=c('[0,5)','[5,15)','Global'),ordered=
 RTS <- RTS[order(variable,quantity),]
 RTS <- RTS[,.(quantity,variable,`No intervention`,`Under 5 & HIV+ve`,
               `Under 5 & HIV+ve & LTBI+`,`B-A`,`C-A`)]
-RTS <- RTS[!quantity %in% c('e.LTBI','e.ATTprev','')]
+## RTS <- RTS[!quantity %in% c('e.LTBI','e.ATTprev','')]
+RTS <- RTS[!quantity %in% c('e.LTBI','')]
 myft2 <- regulartable(RTS)
 myft2 <- merge_v(myft2, j = c("variable","quantity") )
 myft2
@@ -328,13 +329,13 @@ tmp1 <- tmp1[,.(`households visited`=-e.households/e.deaths,
                 `IPT courses`=-e.IPT/e.deaths,
                 `anti-TB treatments`=-e.ATT/e.deaths)]
 tmp1[,region:='Global']
-## regional
 tmp2 <- PSAR[,.SD[intervention=='Under 5 & HIV+ve'] - .SD[intervention=='No intervention'],.SDcols=4:(3+nest),by=.(repn,g_whoregion)]
 tmp2 <- tmp2[,.(region=g_whoregion,
                 `households visited`=-e.households/e.deaths,
                 `children screened`=-e.hhc/e.deaths,
                 `IPT courses`=-e.IPT/e.deaths,
                 `anti-TB treatments`=-e.ATT/e.deaths)]
+
 tmp <- rbind(tmp1,tmp2)
 tmpm <- tmp[,lapply(.SD,mean),.SDcols=1:4,by=region]
 tmpu <- tmp[,lapply(.SD,uq),.SDcols=1:4,by=region]
@@ -350,7 +351,7 @@ NNT <- dcast(NNT,region + variable ~ measure)
 
 ggplot(NNT,aes(region,mean)) +
   geom_bar(stat='identity',position = 'dodge') +
-  xlab('Additional units per TB deaths averted') + ylab('Number') +
+  ylab('Additional units per TB deaths averted') + xlab('Region') +
   facet_grid(.~variable)+theme(axis.text.x = element_text(angle = 90)) +
   geom_errorbar(aes(ymin=lo,ymax=hi),col=2,width=0)
 ggsave('tables/NNT2.pdf',width=9)
@@ -381,10 +382,7 @@ fwrite(htmp,file='tables/hiv_mort_region.txt')
 
 
 ## TODO
-
+## document NA handling
 ## document assumptions esp CDR
-## CY compare
-## CHECK CDR for incident cases?
-## IPT read more
 ## consider different LE for HIV
 

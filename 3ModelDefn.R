@@ -177,3 +177,8 @@ kexp$`Prevalent TB disease`$`TB disease outcomes`$`TB treatment`$Set(ATTprev=1,f
 ## different CDR for prevalent
 kexp$`Prevalent TB disease`$`TB disease outcomes`$`TB treatment`$p <- "CDRp"
 kexp$`Prevalent TB disease`$`TB disease outcomes`$`no TB treatment`$p <- "1-CDRp"
+
+## ## checking
+## print(kexp,'treatments','ATTprev')
+## plotter(kexp,varz = c('name','ATTprev','treatments'))
+## plotter(kexp,varz = c('name','ATT'))
