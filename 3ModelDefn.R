@@ -174,6 +174,24 @@ kexp$Set(ATTprev=0)
 kexp$`Prevalent TB disease`$`TB disease outcomes`$`TB treatment`$Set(ATTprev=1,filterFun=function(x) !x$isLeaf)
 ## print(kexp,'ATTprev')
 
+## ATTinc (to distinguish from treatments from detected incidence)
+kexp$Set(ATTinc=0)
+kexp$`No prevalent TB disease`$Set(ATTinc=1,filterFun=function(x) grepl('treatment',x$name) & !grepl('no',x$name))
+## print(kexp,'ATTinc','ATTprev')
+
+## cases both inc and prevalence
+kexp$Set(cases=0)
+kexp$Set(cases=1,filterFun=function(x) grepl('outcomes',x$name))
+## print(kexp,'cases','prevalent','incidence')
+## plotter(kexp,varz=c('name','cases','prevalent','incidence'))
+
+## deaths by inc prev
+kexp$Set(deathinc=0)
+kexp$Set(deathprev=0)
+kexp$`No prevalent TB disease`$Set(deathinc=1,filterFun=function(x) grepl('dies',x$name))
+kexp$`Prevalent TB disease`$Set(deathprev=1,filterFun=function(x) grepl('dies',x$name))
+## print(kexp,'deathinc','deathprev')
+
 ## different CDR for prevalent
 kexp$`Prevalent TB disease`$`TB disease outcomes`$`TB treatment`$p <- "CDRp"
 kexp$`Prevalent TB disease`$`TB disease outcomes`$`no TB treatment`$p <- "1-CDRp"
@@ -181,4 +199,4 @@ kexp$`Prevalent TB disease`$`TB disease outcomes`$`no TB treatment`$p <- "1-CDRp
 ## ## checking
 ## print(kexp,'treatments','ATTprev')
 ## plotter(kexp,varz = c('name','ATTprev','treatments'))
-## plotter(kexp,varz = c('name','ATT'))
+plotter(kexp,varz = c('name','ATT'))

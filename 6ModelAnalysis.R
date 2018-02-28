@@ -8,6 +8,7 @@ rm(list=ls())                           #clear
 library(officer)
 library(magrittr)
 library(flextable)
+library(treemap)
 pp <- function(x,sf=3,ns=0) format(signif(round(x),sf), nsmall=ns, big.mark=",",scientific = FALSE)
 pps <- function(x,...) gsub("^\\s+|\\s+$", "", pp(x,...))
 ppb <- function(x,y,...) paste0('(',pps(x,...),' \u2013 ',pps(y,...),')')
@@ -102,12 +103,16 @@ summary(F$checkfun(PSA))                         #check
 
 PSA$e.prevalent <- F$prevalentfun(PSA)
 PSA$e.incidence <- F$incidencefun(PSA)
+PSA$e.cases <- F$casesfun(PSA)
+PSA$e.deathprev <- F$deathprevfun(PSA)
+PSA$e.deathinc <- F$deathincfun(PSA)
 PSA$e.deaths <- F$deathfun(PSA)
 PSA$e.LE <- F$LEfun(PSA)
+PSA$e.ATTprev <- F$ATTprevfun(PSA)
+PSA$e.ATTinc <- F$ATTincfun(PSA)
 PSA$e.ATT <- F$treatmentsfun(PSA)
 PSA$e.IPT <- F$IPTfun(PSA)
 PSA$e.LTBI <- F$LTBIfun(PSA)
-PSA$e.ATTprev <- F$ATTprevfun(PSA)
 
 ## estimates of HHC
 HHC <- DLC[rep(1:nrow(DLC),nrep),.(iso3,mu=u5hhc.l,sdl=u5hhc.sdl)]   #data frame of hhc
@@ -195,7 +200,8 @@ PSACh <- PSA[,lapply(.SD,uq),by=.(intervention,iso3),.SDcols=ests]
 
 ## == gathering
 intl <- c("No intervention","Under 5 & HIV+ve","Under 5 & HIV+ve & LTBI+","B-A","C-A")
-varlv <- ests[c(10,9,7,1,8,5,6,2,3,4)]  #reorder
+## varlv <- ests[c(10,9,7,1,8,5,6,2,3,4)]  #reorder
+varlv <- ests[c(14,13,8:11,12,1:7)]  #reorder
 nint <- length(intl)
 hhrpl <- PSA[repn==1 & acat=="[5,15)" & hiv==0 & intervention==unique(intervention)[2],sum(e.households)] #the non zero value
 
@@ -260,6 +266,25 @@ PSACm[!grepl('5',intervention),household.visits:=0]                    #no visit
 PSACm <- PSACm[,c(names(PSACm)[1:2],sort(names(PSACm)[3:ncol(PSACm)])),with=FALSE]
 fwrite(PSACm,file='tables/country_output.csv')
 
+## graph of where preventable deaths are
+psctmp <- PSA[,.(e.deaths=sum(e.deaths)),by=.(iso3,repn,g_whoregion,intervention)]
+psctmp <- psctmp[,.(e.deaths=mean(e.deaths)),by=.(iso3,g_whoregion,intervention)]
+gtmp <- psctmp[,-.SD[intervention=='Under 5 & HIV+ve'] + .SD[intervention=='No intervention'],.SDcols=c('e.deaths'),by=.(iso3,g_whoregion)]
+## gtmp <- PSACm[intervention=='No intervention',.(iso3,e.deaths)]
+## gtmp <- merge(gtmp,HHV[,.(iso3,g_whoregion)],by='iso3')
+gtmp$region <- plyr::mapvalues(gtmp$g_whoregion,
+                               from=c('AFR','AMR','SEA','EUR','EMR','WPR'),
+                               to=c('African Region','Region of the Americas',
+                                    'South-East Asia Region','European Region',
+                                    'Eastern Mediterranean Region',
+                                    'Western Pacific Region'))
+pdf('tables/mosaic1.pdf')
+treemap(gtmp,index=c("region", "iso3"),vSize="e.deaths",title = "")
+dev.off()
+pdf('tables/mosaic0.pdf')
+treemap(gtmp,index=c("region"),vSize="e.deaths",title = "")
+dev.off()
+
 ## regional etc
 RTL <- merge(RT,RTD)
 RTL <- merge(RTL,RTaD)
@@ -306,8 +331,8 @@ RTS$variable <- factor(RTS$variable,levels=c('[0,5)','[5,15)','Global'),ordered=
 RTS <- RTS[order(variable,quantity),]
 RTS <- RTS[,.(quantity,variable,`No intervention`,`Under 5 & HIV+ve`,
               `Under 5 & HIV+ve & LTBI+`,`B-A`,`C-A`)]
-## RTS <- RTS[!quantity %in% c('e.LTBI','e.ATTprev','')]
-RTS <- RTS[!quantity %in% c('e.LTBI','')]
+##"e.ATTprev"    "e.ATTinc"        "e.LTBI"       "e.prevalent"  "e.incidence"  
+RTS <- RTS[quantity %in% c("e.households","e.hhc","e.ATT","e.IPT","e.cases","e.deaths","e.LE")]
 myft2 <- regulartable(RTS)
 myft2 <- merge_v(myft2, j = c("variable","quantity") )
 myft2
@@ -319,6 +344,30 @@ read_docx() %>%
   body_add_flextable(value = myft2) %>%
   body_end_section(continuous = FALSE, landscape = TRUE) %>% 
   print(target = "tables/RTS.docx") %>% 
+    invisible()
+
+## separate version
+RTSa <- RTS[quantity %in% c("e.households","e.hhc","e.ATT","e.IPT")]
+myft3 <- regulartable(RTSa)
+myft3 <- merge_v(myft3, j = c("variable","quantity") )
+myft3
+read_docx() %>%
+  body_add_par(value = "Global and age outputs (resource)", style = "heading 1") %>%
+  body_add_flextable(value = myft3) %>%
+  body_end_section(continuous = FALSE, landscape = TRUE) %>% 
+  print(target = "tables/RTSa.docx") %>% 
+    invisible()
+
+
+RTSb <- RTS[quantity %in% c("e.cases","e.deaths","e.LE")]
+myft4 <- regulartable(RTSb)
+myft4 <- merge_v(myft4, j = c("variable","quantity") )
+myft4
+read_docx() %>%
+  body_add_par(value = "Global and age outputs (impact)", style = "heading 1") %>%
+  body_add_flextable(value = myft4) %>%
+  body_end_section(continuous = FALSE, landscape = TRUE) %>% 
+  print(target = "tables/RTSb.docx") %>% 
     invisible()
 
 ## == diffs
