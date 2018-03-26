@@ -204,8 +204,8 @@ gp <- ggplot(AM,aes(x=acat,y=n04_m,col=iso3,group=iso3)) +
   geom_errorbar(aes(ymin=n04_m-1.96*sqrt(n04_v),ymax=n04_m+1.96*sqrt(n04_v)),width=0) + 
   facet_grid(g_whoregion~sex)
 
-ggsave('graphs/0AMplot1.pdf',gp,height=14)                    #save out
-ggsave('graphs/0AMplot1.png',gp,height=14)                    #save out
+ggsave('graphs/0AMplot1.pdf',gp,height=14,width=12)                    #save out
+ggsave('graphs/0AMplot1.png',gp,height=14,width=12)                    #save out
 
 gp <- ggplot(AM,aes(x=acat,y=n514_m,col=iso3,group=iso3)) +
   geom_point() + geom_line() +
@@ -213,8 +213,8 @@ gp <- ggplot(AM,aes(x=acat,y=n514_m,col=iso3,group=iso3)) +
                 width=0) +
   facet_grid(g_whoregion~sex)
 
-ggsave('graphs/0AMplot2.pdf',gp,height=14)                    #save out
-ggsave('graphs/0AMplot2.png',gp,height=14)                    #save out
+ggsave('graphs/0AMplot2.pdf',gp,height=14,width=12)                    #save out
+ggsave('graphs/0AMplot2.png',gp,height=14,width=12)                    #save out
 
 
 

@@ -24,12 +24,15 @@ ilogit <- function(x) ioddit(exp(x))
 ## testing
 
 ## == co-prevalence (empirical)
-coprev <- function(a){
+coprev <- function(a,hinco=FALSE){
+  if(length(a)>1 & length(hinco)==1) hinco <- rep(hinco,length(a))
   tmp <- PZ$coprev04$r(length(a))
+  tmp[hinco] <- PZ$coprev04hi$r(sum(hinco))
   tmp[a>=5] <- PZ$coprev514$r(sum(a>=5))
+  tmp[a>=5 & hinco] <- PZ$coprev514hi$r(sum(a>=5 & hinco))
   tmp
 }
-coprev(1:10)
+coprev(1:10,c(rep(FALSE,5),rep(TRUE,5)))
 
 ## == case detection
 CDR <- function(mn,ab){
@@ -82,13 +85,16 @@ summary(CFRtxN(1:1e3,hiv=1,art=1))
 
 ## == LTBI infection probability
 #NB this is LTBI given not active: it is taken to be max(0,LTBI-coprev)
-ltbi.prev <- function(a,coprev){
+ltbi.prev <- function(a,coprev,hinco=FALSE){
+  if(length(a)>1 & length(hinco)==1) hinco <- rep(hinco,length(a))
   tmp <- PZ$LTBI04$r(length(a))
+  tmp[hinco] <- PZ$LTBI04hi$r(sum(hinco))
   tmp[a>=5] <- PZ$LTBI514$r(sum(a>=5))
+  tmp[a>=5 & hinco] <- PZ$LTBI514hi$r(sum(a>=5 & hinco))
   tmp
   ## pmax(0,tmp - coprev) # already taken into account with decision tree
 }
-ltbi.prev(1:10,0.1)
+ltbi.prev(1:10,0.1,hinco=TRUE)
 
 
 ## ===  progression function (finer grained)

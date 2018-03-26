@@ -145,5 +145,3 @@ res['GBR']
 ## save out
 LEA <- res
 save(LEA,file='data/LEA.Rdata')
-
-

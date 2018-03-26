@@ -21,6 +21,7 @@ E <- fread('/Users/pjd/Documents/WHO_TBreports/data2017/TB/TB_burden_countries_2
 E <- E[year==2016]                      #restrict
 ## merge
 D <- merge(N,E,by=c('country','iso2','iso3','iso_numeric','g_whoregion','year'))
+W <- fread('data/WBIL.csv')
 
 ## --- LAT
 load('/Users/pjd/Documents/WHO_TBreports/LAT.Rdata')
@@ -289,8 +290,17 @@ DLKL[,u5hhc := value * phh]             #under 5 HH mean contacts
 chhc <- DLKL[,.(u5hhc=sum(u5hhc),notes=sum(value),phh=mean(phh)),
              by=.(repn,iso3)] #country aggregates
 
+## ## checking!
+## CHK<- merge(chhc,AM[,.(ny=mean(n04_m),no=mean(n514_m)),by=iso3],all.x=FALSE,all.y=TRUE)
+## CHK[,ny:=ny*notes]
+## CHK
+## CHK[,summary(u5hhc/ny)]
+## qplot(data=CHK,y=u5hhc,x=ny) + geom_abline(intercept=0,slope=1,col=2)
+
+
 ghhc <- DLKL[,.(u5hhc=sum(u5hhc),notes=sum(value),phh=mean(phh)),
              by=.(repn)] #global aggregates
+
 
 summary(ghhc)
 ghhc[,mean(u5hhc)*1e-6]                 #around 3 million u5 contacts
@@ -301,6 +311,7 @@ chhc[iso3=='AFG',qplot(u5hhc)]
 
 chhc <- chhc[,.(u5hhc=mean(u5hhc),u5hhc.sd=sd(u5hhc),
                 u5hhc.l=mean(log(u5hhc)),u5hhc.sdl=sd(log(u5hhc))),by=iso3]
+
 
 save(chhc,file='data/chhc.Rdata')
 
@@ -346,6 +357,14 @@ ghhc[,mean(o5hhc)*1e-6]                 #around 3 million u5 contacts
 ohhc[iso3=='ZAF',summary(o5hhc)]/DLK[iso3=='ZAF',sum(value)] #check
 ohhc[iso3=='ZAF',qplot(o5hhc)]
 ohhc[iso3=='AFG',qplot(o5hhc)]
+
+## ## checking!
+## CHK<- merge(ohhc,AM[,.(ny=mean(n04_m),no=mean(n514_m)),by=iso3],all.x=FALSE,all.y=TRUE)
+## CHK[,no:=no*notes]
+## CHK
+## CHK[,summary(o5hhc/no)]
+## qplot(data=CHK,y=o5hhc,x=no) + geom_abline(intercept=0,slope=1,col=2) 
+
 
 ohhc <- ohhc[,.(o5hhc=mean(o5hhc),o5hhc.sd=sd(o5hhc),
                 o5hhc.l=mean(log(o5hhc)),o5hhc.sdl=sd(log(o5hhc))),by=iso3]

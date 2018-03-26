@@ -20,7 +20,7 @@ source('3ModelDefn.R')    #load the decision tree model logic/definition
 source('4ModelFuns.R')    #function defns for decision tree (and distribution parameters)
 
 ## NB PSA ~ 1G of memory with 1e3 replicates
-nrep <- 1e2                             #number of reps for PSA
+nrep <- 1e3                             #number of reps for PSA
 ## ======= children 0-4
 load('data/DLC.Rdata')                  #parent data for children 0-4
 PSA <- DLC[rep(1:nrow(DLC),nrep),]      #build PSA data frame
@@ -50,14 +50,20 @@ PSA[,art:=0]; PSAh[,art:=0]; PSAa[,art:=1]
 PSA <- rbind(PSA,PSAh,PSAa)
 rm(PSAh,PSAa)
 
+## WB income group, should really have done in 5
+W <- fread('data/WBIL.csv')
+PSA <- merge(PSA,W[,.(iso3,income)],by='iso3',all.x = TRUE,all.y=FALSE)
+PSA[is.na(income),income:='missing']
+PSA[,hinco:=(income=='High income')];# PSA[,hinco:=TRUE]
+PSA[,income:=NULL]
+
 ## compute variables for PSA data table
 PSA[,CDR:=CDR(cm,cab)]           #CDR
 PSA[,CDRp:=CDR]                  #CDR in prevalent cases
-PSA[,coprev:=coprev(az)]                #coprevalent TB
+PSA[,coprev:=coprev(az,hinco)]                #coprevalent TB
 PSA[,IPTrr:=IPTrr(az,hiv)]                  #IPT RR for incident TB, dep HIV
 PSA[,IPTrrLP:=IPTrrLP(az)]                  #IPT RR for incident TB, if TST+
-PSA[,ltbi.prev:=ltbi.prev(az,coprev)]   #LTBI prevalence
-PSA[,rrtst:=RRtst(az)]                  #RR for incidence if TST+ve
+PSA[,ltbi.prev:=ltbi.prev(az,coprev,hinco)]   #LTBI prevalence
 PSA[,CFRtxY:=CFRtxY(az,hiv,art)]                #CFR on ATT
 PSA[,CFRtxN:=CFRtxN(az,hiv,art)]                #CFR not on ATT
 PSA[acat=="[0,5)",
@@ -66,9 +72,13 @@ PSA[acat=="[5,15)",
     pprogn:=avo5progprob(a6,a7,a8,a9,a10,
                          a11,a12,a13,a14,a15,
                          LAT,hiv,art)] #progression probability (averaged 5-14)
+## PSA[,pprogn:=pprogn * (1/ltb.prev-1)/2]   #discount already progressed (see appendix)
 PSA[,inc:=ltbi.prev * pprogn]           #TB incidence, total
-PSA[,progn.LP.PTn:=pprogn*rrtst/(1+rrtst)] #TB incidence in LTBI +ve PT-ve
-PSA[,progn.LN.PTn:=pprogn*1/(1+rrtst)]     #TB incidence in LTBI -ve PT-ve
+## sensitivity
+## PSA[,progn.LP.PTn:=pprogn*rrtst/(1+rrtst)] #TB incidence in LTBI +ve PT-ve
+## PSA[,progn.LN.PTn:=pprogn*1/(1+rrtst)]     #TB incidence in LTBI -ve PT-ve
+PSA[,progn.LP.PTn:=pprogn*1] #TB incidence in LTBI +ve PT-ve
+PSA[,progn.LN.PTn:=pprogn*0]     #TB incidence in LTBI -ve PT-ve
 PSA[,progn.LP.PTp:=progn.LP.PTn*IPTrrLP]  #TB incidence in LTBI +ve PT+ve
 PSA[,progn.LN.PTp:=progn.LN.PTn*IPTrr]  #TB incidence in LTBI -ve PT+ve
 PSA[,PTcov.N:=0]                        #coverage of PT in LTBI -ve
@@ -86,6 +96,7 @@ PSA[acat=="[0,5)" & intervention!='No intervention',PTcov.P:=1] #IPT for all und
 PSA[acat=="[5,15)" & hiv==1 & intervention!='No intervention',PTcov.N:=1] #IPT o5s HIV+
 PSA[acat=="[5,15)" & hiv==1 & intervention!='No intervention',PTcov.P:=1] #IPT o5s HIV+
 PSA[acat=="[5,15)" & intervention=='Under 5 & HIV+ve & LTBI+',PTcov.P:=1] #IPT for o5s L+
+
 
 ## tidying
 PSA[,c(paste0('a',1:15)):=NULL]
@@ -272,17 +283,21 @@ psctmp <- psctmp[,.(e.deaths=mean(e.deaths)),by=.(iso3,g_whoregion,intervention)
 gtmp <- psctmp[,-.SD[intervention=='Under 5 & HIV+ve'] + .SD[intervention=='No intervention'],.SDcols=c('e.deaths'),by=.(iso3,g_whoregion)]
 ## gtmp <- PSACm[intervention=='No intervention',.(iso3,e.deaths)]
 ## gtmp <- merge(gtmp,HHV[,.(iso3,g_whoregion)],by='iso3')
-gtmp$region <- plyr::mapvalues(gtmp$g_whoregion,
-                               from=c('AFR','AMR','SEA','EUR','EMR','WPR'),
-                               to=c('African Region','Region of the Americas',
+whoiso3 <- c('AFR','AMR','SEA','EUR','EMR','WPR')
+whonames <- c('African Region','Region of the Americas',
                                     'South-East Asia Region','European Region',
                                     'Eastern Mediterranean Region',
-                                    'Western Pacific Region'))
-pdf('tables/mosaic1.pdf')
-treemap(gtmp,index=c("region", "iso3"),vSize="e.deaths",title = "")
+                                    'Western Pacific Region')
+gtmp$region <- plyr::mapvalues(gtmp$g_whoregion,from=whoiso3,to=whonames)
+
+## treemap(gtmp,index=c("region", "iso3"),vSize="e.deaths",title = "")
+## treemap(gtmp,index=c("region", "iso3"),vSize="e.deaths",title = "",align.labels = list(c('left','top'),c('center','center')))
+## pdf('tables/mosaic1.pdf')
+pdf('tables/mosaic.pdf',width=10.5,height=7)
+treemap(gtmp,index=c("region", "iso3"),vSize="e.deaths",title = "",position.legend = 'right',fontsize.labels = c(0,10))
 dev.off()
-pdf('tables/mosaic0.pdf')
-treemap(gtmp,index=c("region"),vSize="e.deaths",title = "")
+png('tables/mosaic.png',width=10.5,height=7,units='in',res=400)
+treemap(gtmp,index=c("region", "iso3"),vSize="e.deaths",title = "",position.legend = 'right',fontsize.labels = c(0,10))
 dev.off()
 
 ## regional etc
@@ -370,7 +385,7 @@ read_docx() %>%
   print(target = "tables/RTSb.docx") %>% 
     invisible()
 
-## == diffs
+## == diffs per death
 ## global
 tmp1 <- PSAG[,.SD[intervention=='Under 5 & HIV+ve'] - .SD[intervention=='No intervention'],.SDcols=3:(2+nest),by=repn]
 tmp1 <- tmp1[,.(`households visited`=-e.households/e.deaths,
@@ -384,27 +399,120 @@ tmp2 <- tmp2[,.(region=g_whoregion,
                 `children screened`=-e.hhc/e.deaths,
                 `IPT courses`=-e.IPT/e.deaths,
                 `anti-TB treatments`=-e.ATT/e.deaths)]
+tmp3 <- PSAG[,.SD[intervention=="Under 5 & HIV+ve & LTBI+"] - .SD[intervention=='No intervention'],.SDcols=3:(2+nest),by=repn]
+tmp3 <- tmp3[,.(`households visited`=-e.households/e.deaths,
+                `children screened`=-e.hhc/e.deaths,
+                `IPT courses`=-e.IPT/e.deaths,
+                `anti-TB treatments`=-e.ATT/e.deaths)]
+tmp3[,region:='Global']
+tmp4 <- PSAR[,.SD[intervention=="Under 5 & HIV+ve & LTBI+"] - .SD[intervention=='No intervention'],.SDcols=4:(3+nest),by=.(repn,g_whoregion)]
+tmp4 <- tmp4[,.(region=g_whoregion,
+                `households visited`=-e.households/e.deaths,
+                `children screened`=-e.hhc/e.deaths,
+                `IPT courses`=-e.IPT/e.deaths,
+                `anti-TB treatments`=-e.ATT/e.deaths)]
 
-tmp <- rbind(tmp1,tmp2)
-tmpm <- tmp[,lapply(.SD,mean),.SDcols=1:4,by=region]
-tmpu <- tmp[,lapply(.SD,uq),.SDcols=1:4,by=region]
-tmpl <- tmp[,lapply(.SD,lq),.SDcols=1:4,by=region]
+
+tmp <- rbind(tmp1,tmp2,tmp3,tmp4)
+tmp[,intervention:=c(rep('Under 5 & HIV+ve',nrow(tmp)/2),
+                     rep('Under 5 & HIV+ve & LTBI+',nrow(tmp)/2))]
+
+tmpm <- tmp[,lapply(.SD,mean),.SDcols=1:4,by=.(region,intervention)]
+tmpu <- tmp[,lapply(.SD,uq),.SDcols=1:4,by=.(region,intervention)]
+tmpl <- tmp[,lapply(.SD,lq),.SDcols=1:4,by=.(region,intervention)]
 tmpm[,measure:='mean']
 tmpu[,measure:='hi']
 tmpl[,measure:='lo']
 
-NNT <- rbind(tmpm,tmpu,tmpl)
-NNT <- melt(NNT,id.vars = c('region','measure'))
-NNT$region <- factor(NNT$region,levels=c('Global','AFR','AMR','EMR','EUR','SEA','WPR'),ordered=TRUE)
-NNT <- dcast(NNT,region + variable ~ measure)
+NNTm <- rbind(tmpm,tmpu,tmpl)
+NNTm <- melt(NNTm,id.vars = c('region','measure','intervention'))
+NNTm$region <- factor(NNTm$region,levels=c('Global','AFR','AMR','EMR','EUR','SEA','WPR'),ordered=TRUE)
+NNTm$region <- plyr::mapvalues(NNTm$region,from=c('Global',whoiso3),
+                               to=c('Global',whonames))
+NNTm <- dcast(NNTm,region + variable + intervention ~ measure)
 
-ggplot(NNT,aes(region,mean)) +
+ggplot(NNTm,aes(region,mean)) +
   geom_bar(stat='identity',position = 'dodge') +
   ylab('Additional units per TB deaths averted') + xlab('Region') +
-  facet_grid(.~variable)+theme(axis.text.x = element_text(angle = 90)) +
+  facet_grid(intervention~variable)+theme(axis.text.x = element_text(angle = 90)) +
   geom_errorbar(aes(ymin=lo,ymax=hi),col=2,width=0)
-ggsave('tables/NNT2.pdf',width=9)
-ggsave('tables/NNT2.png',width=9)
+
+ggsave('tables/NNTm.pdf',width=9)
+ggsave('tables/NNTm.png',width=9)
+
+fwrite(NNTm[region=='Global'],file='tables/NNTm.csv')
+
+## == diffs per incident case
+tmp1 <- PSAG[,.SD[intervention=='Under 5 & HIV+ve'] - .SD[intervention=='No intervention'],.SDcols=3:(2+nest),by=repn]
+tmp1 <- tmp1[,.(`households visited`=-e.households/e.incidence,
+                `children screened`=-e.hhc/e.incidence,
+                `IPT courses`=-e.IPT/e.incidence,
+                `anti-TB treatments`=-e.ATT/e.incidence)]
+tmp1[,region:='Global']
+tmp2 <- PSAR[,.SD[intervention=='Under 5 & HIV+ve'] - .SD[intervention=='No intervention'],.SDcols=4:(3+nest),by=.(repn,g_whoregion)]
+tmp2 <- tmp2[,.(region=g_whoregion,
+                `households visited`=-e.households/e.incidence,
+                `children screened`=-e.hhc/e.incidence,
+                `IPT courses`=-e.IPT/e.incidence,
+                `anti-TB treatments`=-e.ATT/e.incidence)]
+tmp3 <- PSAG[,.SD[intervention=="Under 5 & HIV+ve & LTBI+"] - .SD[intervention=='No intervention'],.SDcols=3:(2+nest),by=repn]
+tmp3 <- tmp3[,.(`households visited`=-e.households/e.incidence,
+                `children screened`=-e.hhc/e.incidence,
+                `IPT courses`=-e.IPT/e.incidence,
+                `anti-TB treatments`=-e.ATT/e.incidence)]
+tmp3[,region:='Global']
+tmp4 <- PSAR[,.SD[intervention=="Under 5 & HIV+ve & LTBI+"] - .SD[intervention=='No intervention'],.SDcols=4:(3+nest),by=.(repn,g_whoregion)]
+tmp4 <- tmp4[,.(region=g_whoregion,
+                `households visited`=-e.households/e.incidence,
+                `children screened`=-e.hhc/e.incidence,
+                `IPT courses`=-e.IPT/e.incidence,
+                `anti-TB treatments`=-e.ATT/e.incidence)]
+
+tmp <- rbind(tmp1,tmp2,tmp3,tmp4)
+tmp[,intervention:=c(rep('Under 5 & HIV+ve',nrow(tmp)/2),
+                     rep('Under 5 & HIV+ve & LTBI+',nrow(tmp)/2))]
+
+tmpm <- tmp[,lapply(.SD,mean),.SDcols=1:4,by=.(region,intervention)]
+tmpu <- tmp[,lapply(.SD,uq),.SDcols=1:4,by=.(region,intervention)]
+tmpl <- tmp[,lapply(.SD,lq),.SDcols=1:4,by=.(region,intervention)]
+tmpm[,measure:='mean']
+tmpu[,measure:='hi']
+tmpl[,measure:='lo']
+
+NNTi <- rbind(tmpm,tmpu,tmpl)
+NNTi <- melt(NNTi,id.vars = c('region','measure','intervention'))
+NNTi$region <- factor(NNTi$region,levels=c('Global','AFR','AMR','EMR','EUR','SEA','WPR'),ordered=TRUE)
+NNTi$region <- plyr::mapvalues(NNTi$region,from=c('Global',whoiso3),
+                               to=c('Global',whonames))
+NNTi <- dcast(NNTi,region + variable + intervention ~ measure)
+
+
+plt <- ggplot(NNTi,aes(region,mean)) +
+  geom_bar(stat='identity',position = 'dodge') +
+  ylab('Additional units per TB case averted') + xlab('Region') +
+  facet_grid(intervention~variable)+theme(axis.text.x = element_text(angle = 90)) +
+  geom_errorbar(aes(ymin=lo,ymax=hi),col=2,width=0)
+
+ggsave('tables/NNTi.pdf',plt,width=9)
+ggsave('tables/NNTi.png',plt,width=9)
+fwrite(NNTi[region=='Global'],file='tables/NNTi.csv')
+
+## === NNT for both cases and deaths
+NNT <- rbind(NNTi,NNTm)
+NNT[,Outcome:=c(rep('cases',nrow(NNTi)),rep('deaths',nrow(NNTm)))]
+NNT$Scenario <- c('A','B')
+
+plt <- ggplot(NNT,aes(region,mean)) +
+  geom_bar(stat='identity',position = 'dodge') +
+  ylab('Additional units per tuberculosis outcome averted') + xlab('Region') +
+  facet_grid(Scenario + Outcome~variable,labeller=label_context)+
+  theme(axis.text.x = element_text(angle = 90)) +
+  geom_errorbar(aes(ymin=lo,ymax=hi),col=2,width=0)
+
+ggsave('tables/NNT.pdf',plt,width=9,height=12)
+ggsave('tables/NNT.png',plt,width=9,height=12)
+
+
 
 ## === HIV outputs
 ## hhc
@@ -429,9 +537,5 @@ fwrite(htmp,file='tables/hiv_mort_age.txt')
 (htmp <- PSA[intervention=='No intervention'][,.(de=sum(e.deaths)),by=.(repn,hiv,g_whoregion)][,.(h=.SD[hiv==1,de]/.SD[,sum(de)]),by=.(repn,g_whoregion)][,mean(h),by=g_whoregion])
 fwrite(htmp,file='tables/hiv_mort_region.txt')
 
-
-## TODO
-## document NA handling
-## document assumptions esp CDR
-## consider different LE for HIV
+## ggplot(PSA[intervention=='No intervention'],aes(x=coprev)) + geom_histogram() + facet_grid(acat~hinco)
 
