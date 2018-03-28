@@ -390,26 +390,26 @@ read_docx() %>%
 tmp1 <- PSAG[,.SD[intervention=='Under 5 & HIV+ve'] - .SD[intervention=='No intervention'],.SDcols=3:(2+nest),by=repn]
 tmp1 <- tmp1[,.(`households visited`=-e.households/e.deaths,
                 `children screened`=-e.hhc/e.deaths,
-                `IPT courses`=-e.IPT/e.deaths,
+                `PT courses`=-e.IPT/e.deaths,
                 `anti-TB treatments`=-e.ATT/e.deaths)]
 tmp1[,region:='Global']
 tmp2 <- PSAR[,.SD[intervention=='Under 5 & HIV+ve'] - .SD[intervention=='No intervention'],.SDcols=4:(3+nest),by=.(repn,g_whoregion)]
 tmp2 <- tmp2[,.(region=g_whoregion,
                 `households visited`=-e.households/e.deaths,
                 `children screened`=-e.hhc/e.deaths,
-                `IPT courses`=-e.IPT/e.deaths,
+                `PT courses`=-e.IPT/e.deaths,
                 `anti-TB treatments`=-e.ATT/e.deaths)]
 tmp3 <- PSAG[,.SD[intervention=="Under 5 & HIV+ve & LTBI+"] - .SD[intervention=='No intervention'],.SDcols=3:(2+nest),by=repn]
 tmp3 <- tmp3[,.(`households visited`=-e.households/e.deaths,
                 `children screened`=-e.hhc/e.deaths,
-                `IPT courses`=-e.IPT/e.deaths,
+                `PT courses`=-e.IPT/e.deaths,
                 `anti-TB treatments`=-e.ATT/e.deaths)]
 tmp3[,region:='Global']
 tmp4 <- PSAR[,.SD[intervention=="Under 5 & HIV+ve & LTBI+"] - .SD[intervention=='No intervention'],.SDcols=4:(3+nest),by=.(repn,g_whoregion)]
 tmp4 <- tmp4[,.(region=g_whoregion,
                 `households visited`=-e.households/e.deaths,
                 `children screened`=-e.hhc/e.deaths,
-                `IPT courses`=-e.IPT/e.deaths,
+                `PT courses`=-e.IPT/e.deaths,
                 `anti-TB treatments`=-e.ATT/e.deaths)]
 
 
@@ -446,26 +446,26 @@ fwrite(NNTm[region=='Global'],file='tables/NNTm.csv')
 tmp1 <- PSAG[,.SD[intervention=='Under 5 & HIV+ve'] - .SD[intervention=='No intervention'],.SDcols=3:(2+nest),by=repn]
 tmp1 <- tmp1[,.(`households visited`=-e.households/e.incidence,
                 `children screened`=-e.hhc/e.incidence,
-                `IPT courses`=-e.IPT/e.incidence,
+                `PT courses`=-e.IPT/e.incidence,
                 `anti-TB treatments`=-e.ATT/e.incidence)]
 tmp1[,region:='Global']
 tmp2 <- PSAR[,.SD[intervention=='Under 5 & HIV+ve'] - .SD[intervention=='No intervention'],.SDcols=4:(3+nest),by=.(repn,g_whoregion)]
 tmp2 <- tmp2[,.(region=g_whoregion,
                 `households visited`=-e.households/e.incidence,
                 `children screened`=-e.hhc/e.incidence,
-                `IPT courses`=-e.IPT/e.incidence,
+                `PT courses`=-e.IPT/e.incidence,
                 `anti-TB treatments`=-e.ATT/e.incidence)]
 tmp3 <- PSAG[,.SD[intervention=="Under 5 & HIV+ve & LTBI+"] - .SD[intervention=='No intervention'],.SDcols=3:(2+nest),by=repn]
 tmp3 <- tmp3[,.(`households visited`=-e.households/e.incidence,
                 `children screened`=-e.hhc/e.incidence,
-                `IPT courses`=-e.IPT/e.incidence,
+                `PT courses`=-e.IPT/e.incidence,
                 `anti-TB treatments`=-e.ATT/e.incidence)]
 tmp3[,region:='Global']
 tmp4 <- PSAR[,.SD[intervention=="Under 5 & HIV+ve & LTBI+"] - .SD[intervention=='No intervention'],.SDcols=4:(3+nest),by=.(repn,g_whoregion)]
 tmp4 <- tmp4[,.(region=g_whoregion,
                 `households visited`=-e.households/e.incidence,
                 `children screened`=-e.hhc/e.incidence,
-                `IPT courses`=-e.IPT/e.incidence,
+                `PT courses`=-e.IPT/e.incidence,
                 `anti-TB treatments`=-e.ATT/e.incidence)]
 
 tmp <- rbind(tmp1,tmp2,tmp3,tmp4)
@@ -500,7 +500,7 @@ fwrite(NNTi[region=='Global'],file='tables/NNTi.csv')
 ## === NNT for both cases and deaths
 NNT <- rbind(NNTi,NNTm)
 NNT[,Outcome:=c(rep('cases',nrow(NNTi)),rep('deaths',nrow(NNTm)))]
-NNT$Scenario <- c('A','B')
+NNT$Scenario <- c('B','C')
 
 plt <- ggplot(NNT,aes(region,mean)) +
   geom_bar(stat='identity',position = 'dodge') +
